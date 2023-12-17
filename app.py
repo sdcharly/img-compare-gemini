@@ -89,24 +89,25 @@ def process_query_result(query_result):
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
-        return render_template('upload.html')
     if 'image' not in request.files:
         return 'No image part', 400
     file = request.files['image']
     if file.filename == '':
         return 'No selected image', 400
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        try:
-            file.save(file_path)
-            embedding = generate_embedding(file_path)
-            pinecone_index = init_pinecone()
-            pinecone_index.upsert([(filename, embedding)])  # Use the list version of embedding
-            return 'Image successfully uploaded and indexed'
-        except Exception as e:
-            logging.error(f"Error uploading file: {e}")
-            return 'Error in file processing', 500
+    if not allowed_file(file.filename):
+        return 'File type not allowed', 400
+
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    try:
+        file.save(file_path)
+        embedding = generate_embedding(file_path)
+        pinecone_index = init_pinecone()
+        pinecone_index.upsert([(filename, embedding)])  # Use the list version of embedding
+        return 'Image successfully uploaded and indexed'
+    except Exception as e:
+        logging.error(f"Error uploading file: {e}")
+        return 'Error in file processing', 500
 
 def get_inception_model():
     if 'inception_model' not in app.config:
