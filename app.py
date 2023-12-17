@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import os
 import logging
@@ -27,7 +27,7 @@ def allowed_file(filename):
 @app.route('/')
 def index():
     return render_template('index.html')
-    
+
 @app.route('/search', methods=['POST'])
 def search_image():
     if 'image' not in request.files:
@@ -43,10 +43,10 @@ def search_image():
             embedding = generate_embedding(file_path)
             pinecone_index = init_pinecone()
             query_result = pinecone_index.query(embedding, top_k=2)  # Retrieve top 2 similar images
-            return query_result
+            return jsonify(query_result)  # Use jsonify to return JSON response
         except Exception as e:
             logging.error(f"Error in search operation: {e}")
-        return 'Error in search processing', 500
+            return 'Error in search processing', 500
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
@@ -66,7 +66,7 @@ def upload_image():
             return 'Image successfully uploaded and indexed'
         except Exception as e:
             logging.error(f"Error uploading file: {e}")
-        return 'Error in file processing', 500
+            return 'Error in file processing', 500  # Moved inside the except block
 
 # Lazy loading of InceptionV3 model
 def get_inception_model():
