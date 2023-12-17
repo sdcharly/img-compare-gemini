@@ -8,6 +8,41 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
+# Configure API key
+api_key = os.environ.get('GEMINI_KEY')
+genai.configure(api_key=api_key)
+
+# Set up the model
+generation_config = {
+  "temperature": 0.6,
+  "top_p": 1,
+  "top_k": 32,
+  "max_output_tokens": 4096,
+}
+
+safety_settings = [
+   {
+    "category": "HARM_CATEGORY_HARASSMENT",
+    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+  },
+  {
+    "category": "HARM_CATEGORY_HATE_SPEECH",
+    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+  },
+  {
+    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+  },
+  {
+    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+  }
+]
+
+model = genai.GenerativeModel(model_name="gemini-pro-vision",
+                              generation_config=generation_config,
+                              safety_settings=safety_settings)
+
 # Configure API keys and folders
 openai.api_key = os.getenv('OPENAI_API_KEY')
 genai.configure(api_key=os.getenv('GEMINI_KEY'))
@@ -27,23 +62,7 @@ logging.basicConfig(level=logging.INFO)
 global_model = None
 INDEX_NAME = 'imgcompare'
 
-def init_genai_model():
-    global global_model
-    global_model = genai.GenerativeModel(
-        model_name="gemini-vision-pro",
-        generation_config={
-            "temperature": 0.6,
-            "top_p": 1,
-            "top_k": 32,
-            "max_output_tokens": 4096
-        },
-        safety_settings=[
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
-        ]
-    )
+
 
 def init_pinecone():
     try:
@@ -127,6 +146,5 @@ def upsert_to_pinecone(image_name, embedding):
         logging.error(f"Error upserting to Pinecone: {e}")
 
 if __name__ == '__main__':
-    init_genai_model()
     init_pinecone()
     app.run(debug=True)
