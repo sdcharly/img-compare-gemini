@@ -42,12 +42,11 @@ def upload_image():
             file.save(file_path)
             embedding = generate_embedding(file_path)
             pinecone_index = init_pinecone()
-            pinecone_index.upsert([(filename, embedding)])
+            pinecone_index.upsert([(filename, embedding)])  # Use the list version of embedding
             return 'Image successfully uploaded and indexed'
         except Exception as e:
             logging.error(f"Error uploading file: {e}")
-            return 'Error in file processing', 500
-    return 'Invalid file type', 400
+        return 'Error in file processing', 500
 
 # Lazy loading of InceptionV3 model
 def get_inception_model():
@@ -67,9 +66,11 @@ def generate_embedding(image_path):
         embedding = inception_model.predict(img_array)
         embedding_flattened = embedding.flatten()
 
+        embedding_list = embedding_flattened.tolist()  # Convert ndarray to list
+
         logging.info("Image processing successful")
-        return embedding_flattened
-    except Exception as e:
+        return embedding_list
+     except Exception as e:
         logging.error(f"Error in generating embedding: {e}")
         raise
 
