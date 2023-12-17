@@ -81,21 +81,10 @@ def search_image():
 
 def process_query_result(query_result):
     if 'matches' in query_result and query_result['matches']:
-        processed_matches = []
-
-        for match in query_result['matches']:
-            score = match['score']
-            if score >= 0.6:
-                processed_match = {
-                    'id': match['id'],
-                    'score': f"{score * 100:.2f}%"
-                }
-                processed_matches.append(processed_match)
-
-        if processed_matches:
-            return {'matches': processed_matches}
-        else:
-            return "No Match Found"
+        processed_matches = [{'id': match['id'], 'score': match['score']} for match in query_result['matches']]
+        return {'matches': processed_matches}
+    elif 'matches' in query_result and not query_result['matches']:
+        return "No Match Found"
     else:
         logging.error("Unexpected or empty query result format")
         return "Unexpected or empty query result format"
