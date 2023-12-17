@@ -33,6 +33,21 @@ def upload_image():
             return str(e)  # Or a more user-friendly message
     return 'Invalid file type'
 
+    if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+    
+            # Generate Embedding
+            embedding = generate_embedding(file_path)
+    
+            # Upsert to Pinecone
+            pinecone_index = init_pinecone()
+            pinecone_index.upsert([(filename, embedding)])
+            
+            return 'Image successfully uploaded and indexed'
+        return 'Invalid file type'
+
 def generate_embedding(image_path):
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
