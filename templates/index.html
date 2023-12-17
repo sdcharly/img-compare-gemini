@@ -3,82 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Processing App</title>
+    <title>Image Search</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { padding-top: 20px; }
-        .hidden { display: none; }
-        .container { max-width: 600px; }
-        .progress-bar { transition: width 0.4s ease; }
+        .container { max-width: 600px; margin-top: 20px; }
+        .results { margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="text-center mb-4">Image Processing App</h1>
-
-        <div class="text-center mb-3">
-            <button id="btnUpload" class="btn btn-primary">Upsert Images</button>
-            <button id="btnSearch" class="btn btn-secondary">Search Image</button>
-        </div>
-
-        <div id="uploadContainer" class="hidden">
-            <form id="uploadForm" enctype="multipart/form-data">
-                <input type="file" class="form-control" name="images" multiple required>
-                <button type="submit" class="btn btn-success mt-3">Upload Images</button>
-            </form>
-            <div id="uploadProgress" class="progress mt-3 hidden">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
-            </div>
-            <div id="uploadStatus" class="mt-2"></div>
-        </div>
-
-        <div id="searchContainer" class="hidden">
-            <form id="searchForm" enctype="multipart/form-data">
-                <input type="file" class="form-control" name="image" required>
-                <button type="submit" class="btn btn-primary mt-3">Search Image</button>
-            </form>
-            <div id="searchResults" class="mt-3"></div>
-        </div>
+        <h2>Image Search</h2>
+        <form id="searchForm" enctype="multipart/form-data">
+            <input type="file" class="form-control" name="image" required>
+            <button type="submit" class="btn btn-primary mt-3">Search</button>
+        </form>
+        <div id="searchResults" class="results"></div>
     </div>
 
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.getElementById('btnUpload').addEventListener('click', function() {
-            document.getElementById('uploadContainer').classList.remove('hidden');
-            document.getElementById('searchContainer').classList.add('hidden');
-        });
-
-        document.getElementById('btnSearch').addEventListener('click', function() {
-            document.getElementById('searchContainer').classList.remove('hidden');
-            document.getElementById('uploadContainer').classList.add('hidden');
-        });
-
-        // AJAX for Image Upload
-        document.getElementById('uploadForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            var formData = new FormData(this);
-            var progressBar = document.getElementById('uploadProgress').children[0];
-            var uploadStatus = document.getElementById('uploadStatus');
-            document.getElementById('uploadProgress').classList.remove('hidden');
-
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            }).then(response => response.text())
-            .then(data => {
-                progressBar.style.width = '100%';
-                uploadStatus.innerText = data;
-            }).catch(error => {
-                uploadStatus.innerText = 'Upload failed';
-            }).finally(() => {
-                setTimeout(() => {
-                    progressBar.style.width = '0%';
-                    document.getElementById('uploadProgress').classList.add('hidden');
-                }, 2000);
-            });
-        });
-
-        // AJAX for Image Search
         document.getElementById('searchForm').addEventListener('submit', function(e) {
             e.preventDefault();
             var formData = new FormData(this);
@@ -89,11 +32,22 @@
                 body: formData
             }).then(response => response.json())
             .then(data => {
-                searchResults.innerText = JSON.stringify(data);
+                searchResults.innerHTML = '<h4>Results:</h4>';
+                searchResults.appendChild(createResultsList(data));
             }).catch(error => {
-                searchResults.innerText = 'Search failed';
+                searchResults.innerText = 'Search failed. Please try again.';
             });
         });
+
+        function createResultsList(data) {
+            var list = document.createElement('ul');
+            data.results.forEach(item => {
+                var listItem = document.createElement('li');
+                listItem.innerText = `ID: ${item.id}, Score: ${item.score}`;
+                list.appendChild(listItem);
+            });
+            return list;
+        }
     </script>
 </body>
 </html>
