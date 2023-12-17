@@ -1,4 +1,5 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
+from werkzeug.utils import secure_filename
 import os
 
 app = Flask(__name__)
@@ -25,10 +26,12 @@ def upload_image():
         return 'No selected image'
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return 'Image successfully uploaded'
+        try:
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            return 'Image successfully uploaded'
+        except Exception as e:
+            return str(e)  # Or a more user-friendly message
     return 'Invalid file type'
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
+    app.run()
