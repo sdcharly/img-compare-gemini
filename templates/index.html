@@ -5,62 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Processing App</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 20px; }
+        .hidden { display: none; }
+        .container { max-width: 600px; }
+        .progress-bar { transition: width 0.4s ease; }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <div class="container">
         <h1 class="text-center mb-4">Image Processing App</h1>
-        
-        <!-- Option Buttons -->
+
         <div class="text-center mb-3">
             <button id="btnUpload" class="btn btn-primary">Upsert Images</button>
             <button id="btnSearch" class="btn btn-secondary">Search Image</button>
         </div>
 
-        <!-- Upsert Container -->
-        <div id="uploadContainer" class="d-none">
-            <form id="uploadForm" method="post" enctype="multipart/form-data">
-                <input type="file" class="form-control" name="images" multiple>
+        <div id="uploadContainer" class="hidden">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" class="form-control" name="images" multiple required>
                 <button type="submit" class="btn btn-success mt-3">Upload Images</button>
             </form>
-            <div id="uploadProgress" class="mt-3"></div>
+            <div id="uploadProgress" class="progress mt-3 hidden">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+            </div>
+            <div id="uploadStatus" class="mt-2"></div>
         </div>
 
-        <!-- Search Container -->
-        <div id="searchContainer" class="d-none">
-            <form id="searchForm" method="post" enctype="multipart/form-data">
-                <input type="file" class="form-control" name="image">
+        <div id="searchContainer" class="hidden">
+            <form id="searchForm" enctype="multipart/form-data">
+                <input type="file" class="form-control" name="image" required>
                 <button type="submit" class="btn btn-primary mt-3">Search Image</button>
             </form>
             <div id="searchResults" class="mt-3"></div>
         </div>
     </div>
 
-    <!-- Bootstrap Bundle JS -->
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        // JavaScript for toggling containers
         document.getElementById('btnUpload').addEventListener('click', function() {
-            document.getElementById('uploadContainer').classList.remove('d-none');
-            document.getElementById('searchContainer').classList.add('d-none');
+            document.getElementById('uploadContainer').classList.remove('hidden');
+            document.getElementById('searchContainer').classList.add('hidden');
         });
 
         document.getElementById('btnSearch').addEventListener('click', function() {
-            document.getElementById('searchContainer').classList.remove('d-none');
-            document.getElementById('uploadContainer').classList.add('d-none');
+            document.getElementById('searchContainer').classList.remove('hidden');
+            document.getElementById('uploadContainer').classList.add('hidden');
         });
 
-        // AJAX for Image Upload (Upsert)
+        // AJAX for Image Upload
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
             e.preventDefault();
             var formData = new FormData(this);
+            var progressBar = document.getElementById('uploadProgress').children[0];
+            var uploadStatus = document.getElementById('uploadStatus');
+            document.getElementById('uploadProgress').classList.remove('hidden');
+
             fetch('/upload', {
                 method: 'POST',
                 body: formData
             }).then(response => response.text())
             .then(data => {
-                document.getElementById('uploadProgress').innerText = data;
+                progressBar.style.width = '100%';
+                uploadStatus.innerText = data;
             }).catch(error => {
-                document.getElementById('uploadProgress').innerText = 'Upload failed';
+                uploadStatus.innerText = 'Upload failed';
+            }).finally(() => {
+                setTimeout(() => {
+                    progressBar.style.width = '0%';
+                    document.getElementById('uploadProgress').classList.add('hidden');
+                }, 2000);
             });
         });
 
@@ -68,14 +82,16 @@
         document.getElementById('searchForm').addEventListener('submit', function(e) {
             e.preventDefault();
             var formData = new FormData(this);
+            var searchResults = document.getElementById('searchResults');
+
             fetch('/search', {
                 method: 'POST',
                 body: formData
             }).then(response => response.json())
             .then(data => {
-                document.getElementById('searchResults').innerText = JSON.stringify(data);
+                searchResults.innerText = JSON.stringify(data);
             }).catch(error => {
-                document.getElementById('searchResults').innerText = 'Search failed';
+                searchResults.innerText = 'Search failed';
             });
         });
     </script>
