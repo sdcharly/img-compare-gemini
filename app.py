@@ -9,9 +9,9 @@ from tensorflow.keras.preprocessing import image
 import pinecone
 from google_generativeai import GeminiVisionPro
 
+# Configure API keys
 openai.api_key = os.getenv('OPENAI_API_KEY')
-gemini_api_key = os.getenv('GEMINI_KEY')
-genai.configure(api_key=gemini_api_key)
+genai.configure(api_key=os.getenv('GEMINI_KEY'))
 
 # Ensure TensorFlow is running in CPU mode
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
