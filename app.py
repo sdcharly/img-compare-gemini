@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
-import os openai
+import os openai pinecone
 
 app = Flask(__name__)
 
@@ -45,6 +45,11 @@ def generate_embedding(image_path):
     )
 
     return response['data']['embedding']
-
+    
+def init_pinecone():
+    pinecone.init(api_key=os.getenv("PINECONE_API_KEY"), environment='gcp-starter')
+    pinecone.create_index('image_index', dimension=512, metric='cosine')
+    return pinecone.Index('image_index')
+    
 if __name__ == '__main__':
     app.run()
