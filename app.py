@@ -58,7 +58,19 @@ def upload_image():
 def init_genai_model():
     global global_model
     global_model = genai.GenerativeModel(
-        # Model configuration
+        model_name="gemini-vision-pro",  # Replace with the actual model name
+        generation_config={
+            "temperature": 0.6,  # Sample value, adjust as needed
+            "top_p": 1,          # Sample value, adjust as needed
+            "top_k": 40,         # Sample value, adjust as needed
+            "max_output_tokens": 4096  # Sample value, adjust as needed
+        },
+        safety_settings=[  # Example safety settings, adjust as needed
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
+        ]
     )
 
 # Initialize the model when the app starts
