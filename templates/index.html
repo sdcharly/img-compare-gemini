@@ -58,11 +58,11 @@
             var resultContainer = document.getElementById(resultContainerId);
             var progressBar = document.querySelector('.progress-bar');
             var progressDiv = document.querySelector('.progress');
-
+        
             resultContainer.innerHTML = ''; // Clear previous results or status
             progressBar.style.width = '0%';
             progressDiv.style.display = 'block';
-
+        
             fetch(url, {
                 method: 'POST',
                 body: formData
@@ -70,7 +70,7 @@
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                return response.json();
+                return isSearch ? response.json() : response.text();
             }).then(data => {
                 progressBar.style.width = '100%';
                 if (isSearch) {
@@ -97,6 +97,7 @@
                 container.innerHTML = 'No matches found';
             }
         }
+
     </script>
 </body>
 </html>
