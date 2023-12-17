@@ -54,8 +54,8 @@ def generate_embedding(image_path):
     
 def init_pinecone():
     pinecone.init(api_key=os.getenv("PINECONE_API_KEY"), environment='gcp-starter')
-    # Consider moving pinecone.create_index out of this function if it's a one-time operation
-    return pinecone.Index('image_index')
+    # Connect to the existing index instead of creating a new one
+    return pinecone.Index('imgcompare')
 
 if __name__ == '__main__':
     app.run(debug=False)  # Set debug to False for production
