@@ -10,6 +10,8 @@ import pinecone
 from google_generativeai import GeminiVisionPro
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
+gemini_api_key = os.getenv('GEMINI_KEY')
+genai.configure(api_key=gemini_api_key)
 
 # Ensure TensorFlow is running in CPU mode
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -118,17 +120,15 @@ def upload_image():
         
 def get_image_description(image_path):
     # Initialize the Gemini Vision Pro model
-    model = GeminiVisionPro()
-
+    model = genai.GenerativeModel(model_name="gemini-pro-vision", ...)
+    
     # Read the image data
     with open(image_path, 'rb') as image_file:
         image_data = image_file.read()
 
     # Call the model to generate a description
-    response = model.predict(image_data)
-
-    # Extract the description from the response
-    description = response['description']  # Modify as per actual API response structure
+    response = model.generate_content(image_data)
+    description = response.text  # Adjust based on actual response format
 
     # Limit the description to 100 words
     description_words = description.split()
@@ -155,6 +155,7 @@ def generate_embedding_with_description(description):
     except Exception as e:
         logging.error(f"Error generating embedding: {e}")
         return None
+
 
 def get_inception_model():
     if 'inception_model' not in app.config:
