@@ -42,12 +42,25 @@ def search_image():
         try:
             file.save(file_path)
             embedding = generate_embedding(file_path)
+
+            # Check if embedding is successfully generated
+            if embedding is None:
+                logging.error("Failed to generate embedding")
+                return 'Error in generating embedding', 500
+
             pinecone_index = init_pinecone()
+
+            # Check if Pinecone index is initialized
+            if pinecone_index is None:
+                logging.error("Pinecone index is not initialized")
+                return 'Pinecone index initialization error', 500
+
             query_result = pinecone_index.query(embedding, top_k=2)  # Retrieve top 2 similar images
             return jsonify(query_result)  # Use jsonify to return JSON response
         except Exception as e:
             logging.error(f"Error in search operation: {e}")
             return 'Error in search processing', 500
+
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
