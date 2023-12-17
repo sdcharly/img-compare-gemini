@@ -80,12 +80,13 @@ def search_image():
         return 'Error in search processing', 500
 
 def process_query_result(query_result):
-    if 'matches' in query_result:
-        matches = query_result['matches']
-        return {'matches': [{'id': match['id'], 'score': match['score']} for match in matches]}
+    if 'matches' in query_result and query_result['matches']:
+        filtered_matches = [match for match in query_result['matches'] if match['score'] >= 0.6]
+        if not filtered_matches:
+            return "No Match Found"
+        return {'matches': [{'id': match['id'], 'score': match['score']} for match in filtered_matches]}
     else:
-        logging.error("Unexpected query result format")
-        return {}
+        return "No Match Found"
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
