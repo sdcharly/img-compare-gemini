@@ -12,12 +12,12 @@
 </head>
 <body>
     <div class="container">
-        <h2>Image Search</h2>
+        <h2 class="mb-3">Image Search</h2>
         <form id="searchForm" enctype="multipart/form-data">
             <input type="file" class="form-control" name="image" required>
             <button type="submit" class="btn btn-primary mt-3">Search</button>
         </form>
-        <div id="searchResults" class="results"></div>
+        <div id="searchResults" class="results mt-3"></div>
     </div>
 
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/js/bootstrap.bundle.min.js"></script>
@@ -26,28 +26,26 @@
             e.preventDefault();
             var formData = new FormData(this);
             var searchResults = document.getElementById('searchResults');
+            searchResults.innerHTML = ''; // Clear previous results
 
             fetch('/search', {
                 method: 'POST',
                 body: formData
             }).then(response => response.json())
             .then(data => {
-                searchResults.innerHTML = '<h4>Results:</h4>';
-                searchResults.appendChild(createResultsList(data));
+                if (data.matches && data.matches.length > 0) {
+                    var resultsHtml = data.matches.map(match => 
+                        `<div><strong>ID:</strong> ${match.id}, <strong>Score:</strong> ${match.score.toFixed(2)}</div>`
+                    ).join('');
+                    searchResults.innerHTML = `<h4>Results:</h4>${resultsHtml}`;
+                } else {
+                    searchResults.innerHTML = 'No matches found';
+                }
             }).catch(error => {
+                console.error(error);
                 searchResults.innerText = 'Search failed. Please try again.';
             });
         });
-
-        function createResultsList(data) {
-            var list = document.createElement('ul');
-            data.results.forEach(item => {
-                var listItem = document.createElement('li');
-                listItem.innerText = `ID: ${item.id}, Score: ${item.score}`;
-                list.appendChild(listItem);
-            });
-            return list;
-        }
     </script>
 </body>
 </html>
