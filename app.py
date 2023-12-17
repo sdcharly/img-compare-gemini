@@ -52,7 +52,7 @@ def search_image():
             logging.error("Failed to initialize Pinecone index")
             return 'Error initializing Pinecone index', 500
         try:
-            query_result = pinecone_index.query(embedding, top_k=2)
+            query_result = pinecone_index.query(embedding, top_k=1)
             if query_result is None:
                 logging.error("Query result is None")
                 return 'Error processing query results', 500
