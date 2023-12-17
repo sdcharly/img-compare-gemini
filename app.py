@@ -43,14 +43,31 @@ def upload_image():
 
 def generate_embedding(image_path):
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    with open(image_path, "rb") as image_file:
-        image_data = image_file.read()
-    
-    response = openai.Image.create_embedding(
-        image_data=image_data,
-        model="clip-vit-base-patch32"  # Example CLIP model, adjust as needed
-    )
-    return response['data']['embedding']
+
+    # Logging before processing the image
+    logging.info(f"Generating embedding for image: {image_path}")
+
+    try:
+        with open(image_path, "rb") as image_file:
+            image_data = image_file.read()
+
+        # Logging the start of OpenAI API call
+        logging.info("Calling OpenAI API for image embedding")
+
+        response = openai.Image.create_embedding(
+            image_data=image_data,
+            model="clip-vit-base-patch32"  # Example CLIP model, adjust as needed
+        )
+
+        # Logging after successful API call
+        logging.info("OpenAI API call successful")
+
+        return response['data']['embedding']
+
+    except Exception as e:
+        # Logging in case of any exception
+        logging.error(f"Error in generating embedding for image {image_path}: {e}")
+        raise  # Re-raise the exception for upstream handling
 
     
 def init_pinecone():
