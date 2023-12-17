@@ -43,19 +43,17 @@
 
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Image Search Functionality
         document.getElementById('searchForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            processImageRequest(this, '/search', 'searchResults');
+            processImageRequest(this, '/search', 'searchResults', true);
         });
 
-        // Image Upload Functionality
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            processImageRequest(this, '/upload', 'uploadStatus');
+            processImageRequest(this, '/upload', 'uploadStatus', false);
         });
 
-        function processImageRequest(form, url, resultContainerId) {
+        function processImageRequest(form, url, resultContainerId, isSearch) {
             var formData = new FormData(form);
             var resultContainer = document.getElementById(resultContainerId);
             var progressBar = document.querySelector('.progress-bar');
@@ -72,16 +70,32 @@
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                return response.text();
+                return response.json();
             }).then(data => {
                 progressBar.style.width = '100%';
-                resultContainer.innerHTML = data;
+                if (isSearch) {
+                    displaySearchResults(data, resultContainer);
+                } else {
+                    resultContainer.innerHTML = data;
+                }
             }).catch(error => {
                 console.error('Fetch error:', error);
                 resultContainer.innerText = 'Operation failed. Please try again.';
             }).finally(() => {
                 setTimeout(() => progressDiv.style.display = 'none', 2000); // Hide progress bar after delay
             });
+        }
+
+        function displaySearchResults(data, container) {
+            if (data.matches && data.matches.length > 0) {
+                var resultsHtml = data.matches.map(match => {
+                    let score = match.score >= 0.6 ? `${(match.score * 100).toFixed(2)}%` : 'No Match';
+                    return `<div><strong>ID:</strong> ${match.id}, <strong>Score:</strong> ${score}</div>`;
+                }).join('');
+                container.innerHTML = `<h4>Results:</h4>${resultsHtml}`;
+            } else {
+                container.innerHTML = 'No matches found';
+            }
         }
     </script>
 </body>
