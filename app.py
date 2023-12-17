@@ -1,25 +1,25 @@
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 import os
-import openai
-import pinecone
 import logging
-
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
 from tensorflow.keras.preprocessing import image
+import pinecone
+
+# Basic logging configuration
+logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
-UPLOAD_FOLDER = './uploads/'  # Update with a valid path
+UPLOAD_FOLDER = './uploads/'  # Ensure this directory exists and has the right permissions
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # e.g., 16MB limit
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/')
 def index():
@@ -28,10 +28,10 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_image():
     if 'image' not in request.files:
-        return 'No image part'
+        return 'No image part', 400
     file = request.files['image']
     if file.filename == '':
-        return 'No selected image'
+        return 'No selected image', 400
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -43,44 +43,38 @@ def upload_image():
             return 'Image successfully uploaded and indexed'
         except Exception as e:
             logging.error(f"Error uploading file: {e}")
-            return 'Error in file processing'
-    return 'Invalid file type'
+            return 'Error in file processing', 500
+    return 'Invalid file type', 400
 
-# Load InceptionV3 model pre-trained on ImageNet data
-inception_model = InceptionV3(weights='imagenet', include_top=False)
+# Lazy loading of InceptionV3 model
+def get_inception_model():
+    if 'inception_model' not in app.config:
+        app.config['inception_model'] = InceptionV3(weights='imagenet', include_top=False)
+    return app.config['inception_model']
 
 def generate_embedding(image_path):
     try:
-        # Load and preprocess the image
         img = image.load_img(image_path, target_size=(299, 299))
         img_array = image.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
         img_array = preprocess_input(img_array)
 
-        # Logging the start of Inception model processing
         logging.info("Processing image with Inception model")
-
-        # Generate embedding
+        inception_model = get_inception_model()
         embedding = inception_model.predict(img_array)
-
-        # Flatten the embedding to make it a 1-D array
         embedding_flattened = embedding.flatten()
 
-        # Logging after successful processing
         logging.info("Image processing successful")
-
         return embedding_flattened
-
     except Exception as e:
-        # Logging in case of any exception
-        logging.error(f"Error in generating embedding for image {image_path}: {e}")
-        raise  # Re-raise the exception for upstream handling
+        logging.error(f"Error in generating embedding: {e}")
+        raise
 
-    
 def init_pinecone():
-    pinecone.init(api_key=os.getenv("PINECONE_API_KEY"), environment='gcp-starter')
-    # Connect to the existing index instead of creating a new one
-    return pinecone.Index('imgcompare')
+    if 'pinecone_index' not in app.config:
+        pinecone.init(api_key=os.getenv("PINECONE_API_KEY"), environment='gcp-starter')
+        app.config['pinecone_index'] = pinecone.Index('imgcompare')
+    return app.config['pinecone_index']
 
 if __name__ == '__main__':
-    app.run(debug=False)  # Set debug to False for production
+    app.run(debug=False)
