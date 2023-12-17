@@ -89,15 +89,13 @@
         function displaySearchResults(data, container) {
             if (data.matches && data.matches.length > 0) {
                 var resultsHtml = data.matches.map(match => {
-                    let score = match.score >= 0.6 ? `${(match.score * 100).toFixed(2)}%` : 'No Match';
-                    return `<div><strong>ID:</strong> ${match.id}, <strong>Score:</strong> ${score}</div>`;
+                    return `<div><strong>ID:</strong> ${match.id}, <strong>Score:</strong> ${match.score}</div>`;
                 }).join('');
                 container.innerHTML = `<h4>Results:</h4>${resultsHtml}`;
             } else {
                 container.innerHTML = 'No matches found';
             }
         }
-
     </script>
 </body>
 </html>
