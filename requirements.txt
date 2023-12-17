@@ -7,3 +7,4 @@ openai
 pinecone-client
 tensorflow
 Pillow
+flask-cors
