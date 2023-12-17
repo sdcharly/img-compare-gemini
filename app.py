@@ -8,6 +8,9 @@ from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_i
 from tensorflow.keras.preprocessing import image
 import pinecone
 
+# Ensure TensorFlow is running in CPU mode
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 # Basic logging configuration
 logging.basicConfig(level=logging.INFO)
 
