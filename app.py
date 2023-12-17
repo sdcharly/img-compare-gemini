@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
-import os
+import os openai
 
 app = Flask(__name__)
 
@@ -32,6 +32,19 @@ def upload_image():
         except Exception as e:
             return str(e)  # Or a more user-friendly message
     return 'Invalid file type'
+
+def generate_embedding(image_path):
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+
+    with open(image_path, "rb") as image_file:
+        image_data = image_file.read()
+    
+    response = openai.Image.create_embedding(
+        image_data=image_data,
+        model="gemini-pro-vision"
+    )
+
+    return response['data']['embedding']
 
 if __name__ == '__main__':
     app.run()
