@@ -5,6 +5,11 @@ import openai
 import pinecone
 import logging
 
+import tensorflow as tf
+import numpy as np
+from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
+from tensorflow.keras.preprocessing import image
+
 app = Flask(__name__)
 
 UPLOAD_FOLDER = './uploads/'  # Update with a valid path
@@ -41,28 +46,30 @@ def upload_image():
             return 'Error in file processing'
     return 'Invalid file type'
 
+# Load InceptionV3 model pre-trained on ImageNet data
+inception_model = InceptionV3(weights='imagenet', include_top=False)
+
 def generate_embedding(image_path):
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-
-    # Logging before processing the image
-    logging.info(f"Generating embedding for image: {image_path}")
-
     try:
-        with open(image_path, "rb") as image_file:
-            image_data = image_file.read()
+        # Load and preprocess the image
+        img = image.load_img(image_path, target_size=(299, 299))
+        img_array = image.img_to_array(img)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = preprocess_input(img_array)
 
-        # Logging the start of OpenAI API call
-        logging.info("Calling OpenAI API for image embedding")
+        # Logging the start of Inception model processing
+        logging.info("Processing image with Inception model")
 
-        response = openai.Image.create_embedding(
-            image_data=image_data,
-            model="clip-vit-base-patch32"  # Example CLIP model, adjust as needed
-        )
+        # Generate embedding
+        embedding = inception_model.predict(img_array)
 
-        # Logging after successful API call
-        logging.info("OpenAI API call successful")
+        # Flatten the embedding to make it a 1-D array
+        embedding_flattened = embedding.flatten()
 
-        return response['data']['embedding']
+        # Logging after successful processing
+        logging.info("Image processing successful")
+
+        return embedding_flattened
 
     except Exception as e:
         # Logging in case of any exception
