@@ -65,10 +65,10 @@ def generate_embedding(image_path):
         inception_model = get_inception_model()
         embedding = inception_model.predict(img_array)
         embedding_flattened = embedding.flatten()
+        # Assume your Pinecone index expects vectors of dimension 512
+        expected_dim = 512
+        embedding_list = embedding_flattened.tolist()[:expected_dim]
 
-        embedding_list = embedding_flattened.tolist()  # Convert ndarray to list
-
-        logging.info("Image processing successful")
         return embedding_list
     except Exception as e:
         logging.error(f"Error in generating embedding: {e}")
