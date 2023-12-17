@@ -48,9 +48,10 @@ def generate_embedding(image_path):
     
     response = openai.Image.create_embedding(
         image_data=image_data,
-        model="gemini-pro-vision"
+        model="clip-vit-base-patch32"  # Example CLIP model, adjust as needed
     )
     return response['data']['embedding']
+
     
 def init_pinecone():
     pinecone.init(api_key=os.getenv("PINECONE_API_KEY"), environment='gcp-starter')
