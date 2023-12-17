@@ -27,6 +27,26 @@ def allowed_file(filename):
 @app.route('/')
 def index():
     return render_template('index.html')
+    
+@app.route('/search', methods=['POST'])
+def search_image():
+    if 'image' not in request.files:
+        return 'No image part', 400
+    file = request.files['image']
+    if file.filename == '':
+        return 'No selected image', 400
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        try:
+            file.save(file_path)
+            embedding = generate_embedding(file_path)
+            pinecone_index = init_pinecone()
+            query_result = pinecone_index.query(embedding, top_k=2)  # Retrieve top 2 similar images
+            return query_result
+        except Exception as e:
+            logging.error(f"Error in search operation: {e}")
+        return 'Error in search processing', 500
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
