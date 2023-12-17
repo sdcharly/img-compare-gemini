@@ -1,204 +1,103 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 import os
-import openai
 import logging
-import numpy as np
-from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
-from tensorflow.keras.preprocessing import image
 import pinecone
-from google_generativeai import GeminiVisionPro
+import openai
+import google.generativeai as genai
+
+app = Flask(__name__)
+
+# Configure the UPLOAD_FOLDER for storing images
+UPLOAD_FOLDER = './uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
+
+# Ensure the upload folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Basic logging setup
+logging.basicConfig(level=logging.INFO)
 
 # Configure API keys
 openai.api_key = os.getenv('OPENAI_API_KEY')
 genai.configure(api_key=os.getenv('GEMINI_KEY'))
 
-# Ensure TensorFlow is running in CPU mode
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-
-# Basic logging configuration
-logging.basicConfig(level=logging.INFO)
-
-app = Flask(__name__)
-
-UPLOAD_FOLDER = './uploads/'  # Ensure this directory exists and has the right permissions
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # e.g., 16MB limit
-
+# Function to check allowed file types
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+    
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/search', methods=['POST'])
-def search_image():
-    if 'image' not in request.files:
-        return 'No image part', 400
-    file = request.files['image']
-    if file.filename == '':
-        return 'No selected image', 400
-    if not allowed_file(file.filename):
-        return 'File type not allowed', 400
-
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-    try:
-        file.save(file_path)
-        embedding = generate_embedding(file_path)
-        if embedding is None:
-            logging.error("Failed to generate embedding")
-            return 'Error in generating embedding', 500
-
-        pinecone_index = init_pinecone()
-        if pinecone_index is None:
-            logging.error("Failed to initialize Pinecone index")
-            return 'Error initializing Pinecone index', 500
-        try:
-            query_result = pinecone_index.query(embedding, top_k=1)
-            if query_result is None:
-                logging.error("Query result is None")
-                return 'Error processing query results', 500
-
-            logging.info(f"Query Result: {query_result}")
-            logging.info("Query processed successfully")
-        except Exception as query_error:
-            logging.error(f"Error during Pinecone query: {query_error}")
-            return 'Error during search query', 500
-
-        try:
-            # Process query_result to ensure it's in a suitable format for jsonify
-            formatted_result = process_query_result(query_result)
-            response = jsonify(formatted_result)
-            return response
-        except TypeError as te:
-            logging.error(f"TypeError in jsonify operation: {te}")
-            return 'TypeError in formatting query results', 500
-        except Exception as jsonify_error:
-            logging.error(f"Error in jsonify operation: {jsonify_error}")
-            return 'Error in formatting query results', 500
-
-    except Exception as e:
-        logging.error(f"Error in search operation: {e}")
-        return 'Error in search processing', 500
-
-def process_query_result(query_result):
-    if 'matches' in query_result and query_result['matches']:
-        processed_matches = [{'id': match['id'], 'score': match['score']} for match in query_result['matches']]
-        return {'matches': processed_matches}
-    elif 'matches' in query_result and not query_result['matches']:
-        return "No Match Found"
-    else:
-        logging.error("Unexpected or empty query result format")
-        return "Unexpected or empty query result format"
-
 @app.route('/upload', methods=['POST'])
 def upload_image():
     if 'image' not in request.files:
-        return 'No image part', 400
+        return jsonify({"error": "No image part"}), 400
     file = request.files['image']
-    if file.filename == '':
-        return 'No selected image', 400
-    if not allowed_file(file.filename):
-        return 'File type not allowed', 400
+    if file.filename == '' or not allowed_file(file.filename):
+        return jsonify({"error": "No selected image or file type not allowed"}), 400
 
     filename = secure_filename(file.filename)
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(file_path)
+
+    embedding = process_image(file_path)
+    upsert_to_pinecone(filename, embedding)
+
+    return jsonify({"message": "Image uploaded successfully"})
+
+# Initialize Pinecone
+def init_pinecone():
+    pinecone.init(api_key=os.getenv('PINECONE_API_KEY'), environment='gcp-starter')
+    if 'imgcompare' not in pinecone.list_indexes():
+        pinecone.create_index('imgcompare', dimension=1536)
+
+INDEX_NAME = 'imgcompare'
+init_pinecone()
+
+# Function to upsert embeddings to Pinecone
+def upsert_to_pinecone(image_name, embedding):
+    index = pinecone.Index(INDEX_NAME)
+    data = {image_name: embedding.tolist()}
     try:
-        file.save(file_path)
-        description = get_image_description(file_path)
-        embedding = generate_embedding_with_description(description)
-        pinecone_index = init_pinecone()
-        pinecone_index.upsert([(filename, embedding)])  # Use the list version of embedding
-        return 'Image successfully uploaded and indexed'
+        index.upsert(vectors=data)
+        logging.info(f"Upserted {image_name} to Pinecone successfully.")
     except Exception as e:
-        logging.error(f"Error uploading file: {e}")
-        return 'Error in file processing', 500
-        
-def get_image_description(image_path):
-    # Initialize the Gemini Vision Pro model
-    model = genai.GenerativeModel(model_name="gemini-pro-vision")
-    
-    # Read the image data
+        logging.error(f"Error upserting to Pinecone: {e}")
+
+def process_image(image_path):
     with open(image_path, 'rb') as image_file:
         image_data = image_file.read()
 
-    # Call the model to generate a description
-    response = model.generate_content(image_data)
-    description = response.text  # Adjust based on actual response format
+    image_prompt = {"mime_type": "image/jpeg", "data": image_data}
+    input_prompt = "You are an expert in identifying images and objects in the image and describing them."
+    question = "Describe this image:"
 
-    # Limit the description to 100 words
-    description_words = description.split()
-    if len(description_words) > 100:
-        description = ' '.join(description_words[:100])
+    prompt_parts = [input_prompt, image_prompt, question]
+    response = model.generate_content(prompt_parts)
 
-    return description
-
+    description = response.text  # Modify based on actual response structure
+    embedding = generate_embedding_with_description(description)
+    return embedding
 
 def generate_embedding_with_description(description):
     try:
-        # Generate embeddings using OpenAI's API
         response = openai.Embedding.create(input=description, engine="text-similarity-babbage-001")
         embedding = response['data'][0]['embedding']
 
-        # Ensure the embedding has the correct dimensionality for Pinecone
         expected_dim = 1536
         if len(embedding) > expected_dim:
             embedding = embedding[:expected_dim]
         elif len(embedding) < expected_dim:
-            embedding.extend([0] * (expected_dim - len(embedding)))
+            embedding.extend([0.0] * (expected_dim - len(embedding)))
 
         return embedding
     except Exception as e:
-        logging.error(f"Error generating embedding: {e}")
+        logging.error(f"Error generating embedding with OpenAI: {e}")
         return None
-
-
-def get_inception_model():
-    if 'inception_model' not in app.config:
-        app.config['inception_model'] = InceptionV3(weights='imagenet', include_top=False)
-    return app.config['inception_model']
-
-def generate_embedding(image_path):
-    try:
-        img = image.load_img(image_path, target_size=(299, 299))
-        img_array = image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = preprocess_input(img_array)
-
-        logging.info("Processing image with Inception model")
-        inception_model = get_inception_model()
-
-        if inception_model is None:
-            logging.error("Inception model is not initialized")
-            return None
-
-        embedding = inception_model.predict(img_array)
-        embedding_flattened = embedding.flatten()
-
-        if embedding_flattened.size == 0:
-            logging.error("Failed to generate embedding")
-            return None
-
-        expected_dim = 1536
-        if embedding_flattened.size < expected_dim:
-            logging.error(f"Embedding size {embedding_flattened.size} is less than expected {expected_dim}")
-            return None
-
-        embedding_list = embedding_flattened.tolist()[:expected_dim]
-        return embedding_list
-    except Exception as e:
-        logging.error(f"Error in generating embedding: {e}")
-        return None
-
-def init_pinecone():
-    if 'pinecone_index' not in app.config:
-        pinecone.init(api_key=os.getenv("PINECONE_API_KEY"), environment='gcp-starter')
-        app.config['pinecone_index'] = pinecone.Index('imgcompare')
-    return app.config['pinecone_index']
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
