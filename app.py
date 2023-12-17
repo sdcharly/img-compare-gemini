@@ -1,11 +1,15 @@
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import os
+import openai
 import logging
 import numpy as np
 from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
 from tensorflow.keras.preprocessing import image
 import pinecone
+from google_generativeai import GeminiVisionPro
+
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # Ensure TensorFlow is running in CPU mode
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -103,13 +107,54 @@ def upload_image():
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     try:
         file.save(file_path)
-        embedding = generate_embedding(file_path)
+        description = get_image_description(file_path)
+        embedding = generate_embedding_with_description(description)
         pinecone_index = init_pinecone()
         pinecone_index.upsert([(filename, embedding)])  # Use the list version of embedding
         return 'Image successfully uploaded and indexed'
     except Exception as e:
         logging.error(f"Error uploading file: {e}")
         return 'Error in file processing', 500
+        
+def get_image_description(image_path):
+    # Initialize the Gemini Vision Pro model
+    model = GeminiVisionPro()
+
+    # Read the image data
+    with open(image_path, 'rb') as image_file:
+        image_data = image_file.read()
+
+    # Call the model to generate a description
+    response = model.predict(image_data)
+
+    # Extract the description from the response
+    description = response['description']  # Modify as per actual API response structure
+
+    # Limit the description to 100 words
+    description_words = description.split()
+    if len(description_words) > 100:
+        description = ' '.join(description_words[:100])
+
+    return description
+
+
+def generate_embedding_with_description(description):
+    try:
+        # Generate embeddings using OpenAI's API
+        response = openai.Embedding.create(input=description, engine="text-similarity-babbage-001")
+        embedding = response['data'][0]['embedding']
+
+        # Ensure the embedding has the correct dimensionality for Pinecone
+        expected_dim = 512
+        if len(embedding) > expected_dim:
+            embedding = embedding[:expected_dim]
+        elif len(embedding) < expected_dim:
+            embedding.extend([0] * (expected_dim - len(embedding)))
+
+        return embedding
+    except Exception as e:
+        logging.error(f"Error generating embedding: {e}")
+        return None
 
 def get_inception_model():
     if 'inception_model' not in app.config:
