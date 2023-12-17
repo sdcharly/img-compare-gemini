@@ -84,16 +84,33 @@ def generate_embedding(image_path):
 
         logging.info("Processing image with Inception model")
         inception_model = get_inception_model()
+
+        # Check if the Inception model is initialized
+        if inception_model is None:
+            logging.error("Inception model is not initialized")
+            return None
+
         embedding = inception_model.predict(img_array)
         embedding_flattened = embedding.flatten()
+        
+        # Check if the embedding is generated correctly
+        if embedding_flattened.size == 0:
+            logging.error("Failed to generate embedding")
+            return None
+
         # Assume your Pinecone index expects vectors of dimension 512
         expected_dim = 512
-        embedding_list = embedding_flattened.tolist()[:expected_dim]
+        if embedding_flattened.size < expected_dim:
+            logging.error(f"Embedding size {embedding_flattened.size} is less than expected {expected_dim}")
+            return None
 
+        embedding_list = embedding_flattened.tolist()[:expected_dim]
         return embedding_list
+
     except Exception as e:
         logging.error(f"Error in generating embedding: {e}")
-        raise
+        return None
+
 
 def init_pinecone():
     if 'pinecone_index' not in app.config:
