@@ -70,7 +70,7 @@ def generate_embedding(image_path):
 
         logging.info("Image processing successful")
         return embedding_list
-     except Exception as e:
+    except Exception as e:
         logging.error(f"Error in generating embedding: {e}")
         raise
 
