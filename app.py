@@ -8,8 +8,11 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
-# Configure the UPLOAD_FOLDER for storing images
-UPLOAD_FOLDER = './uploads'
+# Configure API keys and folders
+openai.api_key = os.getenv('OPENAI_API_KEY')
+genai.configure(api_key=os.getenv('GEMINI_KEY'))
+
+UPLOAD_FOLDER = './uploads/'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
@@ -20,13 +23,37 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Basic logging setup
 logging.basicConfig(level=logging.INFO)
 
-# Configure API keys
-openai.api_key = os.getenv('OPENAI_API_KEY')
-genai.configure(api_key=os.getenv('GEMINI_KEY'))
-
+# Initialize global variables
 global_model = None
+INDEX_NAME = 'imgcompare'
 
-# Function to check allowed file types
+def init_genai_model():
+    global global_model
+    global_model = genai.GenerativeModel(
+        model_name="gemini-vision-pro",
+        generation_config={
+            "temperature": 0.6,
+            "top_p": 1,
+            "top_k": 32,
+            "max_output_tokens": 4096
+        },
+        safety_settings=[
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
+        ]
+    )
+
+def init_pinecone():
+    try:
+        pinecone.init(api_key=os.getenv('PINECONE_API_KEY'), environment='gcp-starter')
+        if INDEX_NAME not in pinecone.list_indexes():
+            pinecone.create_index(INDEX_NAME, dimension=1536)
+    except Exception as e:
+        logging.error(f"Pinecone Initialization Error: {e}")
+        raise
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -38,10 +65,10 @@ def index():
 def upload_image():
     try:
         if 'image' not in request.files:
-            return jsonify({"error": "No image part"}), 400
+            raise ValueError("No image part")
         file = request.files['image']
         if file.filename == '' or not allowed_file(file.filename):
-            return jsonify({"error": "No selected image or file type not allowed"}), 400
+            raise ValueError("No selected image or file type not allowed")
 
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -55,49 +82,6 @@ def upload_image():
         logging.error(f"Upload Image Error: {e}")
         return jsonify({"error": str(e)}), 500
 
-def init_genai_model():
-    global global_model
-    global_model = genai.GenerativeModel(
-        model_name="gemini-vision-pro",  # Replace with the actual model name
-        generation_config={
-            "temperature": 0.6,  # Sample value, adjust as needed
-            "top_p": 1,          # Sample value, adjust as needed
-            "top_k": 40,         # Sample value, adjust as needed
-            "max_output_tokens": 4096  # Sample value, adjust as needed
-        },
-        safety_settings=[  # Example safety settings, adjust as needed
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
-        ]
-    )
-
-# Initialize the model when the app starts
-init_genai_model()
-
-INDEX_NAME = 'imgcompare'
-
-def init_pinecone():
-    try:
-        pinecone.init(api_key=os.getenv('PINECONE_API_KEY'), environment='gcp-starter')
-        if 'imgcompare' not in pinecone.list_indexes():
-            pinecone.create_index('imgcompare', dimension=1536)
-    except Exception as e:
-        logging.error(f"Pinecone Initialization Error: {e}")
-        raise
-
-init_pinecone()
-
-def upsert_to_pinecone(image_name, embedding):
-    try:
-        index = pinecone.Index(INDEX_NAME)
-        data = {image_name: embedding.tolist()}
-        index.upsert(vectors=data)
-        logging.info(f"Upserted {image_name} to Pinecone successfully.")
-    except Exception as e:
-        logging.error(f"Error upserting to Pinecone: {e}")
-
 def process_image(image_path):
     try:
         with open(image_path, 'rb') as image_file:
@@ -110,7 +94,7 @@ def process_image(image_path):
         prompt_parts = [input_prompt, image_prompt, question]
         response = global_model.generate_content(prompt_parts)
 
-        description = response.text  # Modify based on actual response structure
+        description = response.text
         embedding = generate_embedding_with_description(description)
         return embedding
     except Exception as e:
@@ -133,5 +117,16 @@ def generate_embedding_with_description(description):
         logging.error(f"Error generating embedding with OpenAI: {e}")
         return None
 
+def upsert_to_pinecone(image_name, embedding):
+    try:
+        index = pinecone.Index(INDEX_NAME)
+        data = {image_name: embedding.tolist()}
+        index.upsert(vectors=data)
+        logging.info(f"Upserted {image_name} to Pinecone successfully.")
+    except Exception as e:
+        logging.error(f"Error upserting to Pinecone: {e}")
+
 if __name__ == '__main__':
+    init_genai_model()
+    init_pinecone()
     app.run(debug=True)
