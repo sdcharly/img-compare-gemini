@@ -1,10 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
-from flask_cors import CORS
 import os
 import logging
 import numpy as np
-import tensorflow as tf
 from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
 from tensorflow.keras.preprocessing import image
 import pinecone
@@ -66,13 +64,9 @@ def search_image():
             return 'Error during search query', 500
 
         try:
-            # Ensure query_result is in a JSON-serializable format
-            # Convert query_result to a dict or similar structure if necessary
-            if not isinstance(query_result, dict):
-                logging.error("Query result is not a dictionary")
-                return 'Query result format error', 500
-
-            response = jsonify(query_result)
+            # Process query_result to ensure it's in a suitable format for jsonify
+            formatted_result = process_query_result(query_result)
+            response = jsonify(formatted_result)
             return response
         except TypeError as te:
             logging.error(f"TypeError in jsonify operation: {te}")
@@ -84,6 +78,14 @@ def search_image():
     except Exception as e:
         logging.error(f"Error in search operation: {e}")
         return 'Error in search processing', 500
+
+def process_query_result(query_result):
+    if 'matches' in query_result:
+        matches = query_result['matches']
+        return {'matches': [{'id': match['id'], 'score': match['score']} for match in matches]}
+    else:
+        logging.error("Unexpected query result format")
+        return {}
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
@@ -105,7 +107,6 @@ def upload_image():
             logging.error(f"Error uploading file: {e}")
             return 'Error in file processing', 500
 
-# Lazy loading of InceptionV3 model
 def get_inception_model():
     if 'inception_model' not in app.config:
         app.config['inception_model'] = InceptionV3(weights='imagenet', include_top=False)
