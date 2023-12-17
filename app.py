@@ -31,53 +31,45 @@ def index():
 
 @app.route('/search', methods=['POST'])
 def search_image():
-    # Check if image file is in request
     if 'image' not in request.files:
         return 'No image part', 400
     file = request.files['image']
-
-    # Check if image file is selected
     if file.filename == '':
         return 'No selected image', 400
-
-    # Check if the file type is allowed
     if not allowed_file(file.filename):
         return 'File type not allowed', 400
 
-    # Secure the filename and create the full path
     filename = secure_filename(file.filename)
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
     try:
-        # Save the file to the upload folder
         file.save(file_path)
-
-        # Generate embedding for the image
         embedding = generate_embedding(file_path)
         if embedding is None:
             logging.error("Failed to generate embedding")
             return 'Error in generating embedding', 500
 
-        # Initialize Pinecone index
         pinecone_index = init_pinecone()
         if pinecone_index is None:
             logging.error("Failed to initialize Pinecone index")
             return 'Error initializing Pinecone index', 500
 
-        # Query the Pinecone index
         try:
             query_result = pinecone_index.query(embedding, top_k=2)
             if query_result is None:
                 logging.error("Query result is None")
                 return 'Error processing query results', 500
 
+            logging.info(f"Query Result: {query_result}")
             logging.info("Query processed successfully")
         except Exception as query_error:
             logging.error(f"Error during Pinecone query: {query_error}")
             return 'Error during search query', 500
 
-        # Format and return the query results
         try:
+            # Ensure query_result is in a JSON-serializable format
+            # Convert query_result to a dict or similar structure if necessary
+
             response = jsonify(query_result)
             return response
         except Exception as jsonify_error:
