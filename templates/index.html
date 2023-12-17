@@ -31,8 +31,12 @@
             fetch('/search', {
                 method: 'POST',
                 body: formData
-            }).then(response => response.json())
-            .then(data => {
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            }).then(data => {
                 if (data.matches && data.matches.length > 0) {
                     var resultsHtml = data.matches.map(match => 
                         `<div><strong>ID:</strong> ${match.id}, <strong>Score:</strong> ${match.score.toFixed(2)}</div>`
@@ -42,7 +46,7 @@
                     searchResults.innerHTML = 'No matches found';
                 }
             }).catch(error => {
-                console.error(error);
+                console.error('Fetch error:', error);
                 searchResults.innerText = 'Search failed. Please try again.';
             });
         });
