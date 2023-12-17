@@ -1,14 +1,83 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Image Upload</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Processing App</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <h1>Upload Image</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="image">
-        <input type="submit" value="Upload">
-    </form>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Image Processing App</h1>
+        
+        <!-- Option Buttons -->
+        <div class="text-center mb-3">
+            <button id="btnUpload" class="btn btn-primary">Upsert Images</button>
+            <button id="btnSearch" class="btn btn-secondary">Search Image</button>
+        </div>
+
+        <!-- Upsert Container -->
+        <div id="uploadContainer" class="d-none">
+            <form id="uploadForm" method="post" enctype="multipart/form-data">
+                <input type="file" class="form-control" name="images" multiple>
+                <button type="submit" class="btn btn-success mt-3">Upload Images</button>
+            </form>
+            <div id="uploadProgress" class="mt-3"></div>
+        </div>
+
+        <!-- Search Container -->
+        <div id="searchContainer" class="d-none">
+            <form id="searchForm" method="post" enctype="multipart/form-data">
+                <input type="file" class="form-control" name="image">
+                <button type="submit" class="btn btn-primary mt-3">Search Image</button>
+            </form>
+            <div id="searchResults" class="mt-3"></div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // JavaScript for toggling containers
+        document.getElementById('btnUpload').addEventListener('click', function() {
+            document.getElementById('uploadContainer').classList.remove('d-none');
+            document.getElementById('searchContainer').classList.add('d-none');
+        });
+
+        document.getElementById('btnSearch').addEventListener('click', function() {
+            document.getElementById('searchContainer').classList.remove('d-none');
+            document.getElementById('uploadContainer').classList.add('d-none');
+        });
+
+        // AJAX for Image Upload (Upsert)
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.text())
+            .then(data => {
+                document.getElementById('uploadProgress').innerText = data;
+            }).catch(error => {
+                document.getElementById('uploadProgress').innerText = 'Upload failed';
+            });
+        });
+
+        // AJAX for Image Search
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            fetch('/search', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.json())
+            .then(data => {
+                document.getElementById('searchResults').innerText = JSON.stringify(data);
+            }).catch(error => {
+                document.getElementById('searchResults').innerText = 'Search failed';
+            });
+        });
+    </script>
 </body>
 </html>
-
