@@ -120,7 +120,7 @@ def upload_image():
         
 def get_image_description(image_path):
     # Initialize the Gemini Vision Pro model
-    model = genai.GenerativeModel(model_name="gemini-pro-vision", ...)
+    model = genai.GenerativeModel(model_name="gemini-pro-vision")
     
     # Read the image data
     with open(image_path, 'rb') as image_file:
@@ -145,7 +145,7 @@ def generate_embedding_with_description(description):
         embedding = response['data'][0]['embedding']
 
         # Ensure the embedding has the correct dimensionality for Pinecone
-        expected_dim = 512
+        expected_dim = 1536
         if len(embedding) > expected_dim:
             embedding = embedding[:expected_dim]
         elif len(embedding) < expected_dim:
@@ -183,7 +183,7 @@ def generate_embedding(image_path):
             logging.error("Failed to generate embedding")
             return None
 
-        expected_dim = 512
+        expected_dim = 1536
         if embedding_flattened.size < expected_dim:
             logging.error(f"Embedding size {embedding_flattened.size} is less than expected {expected_dim}")
             return None
