@@ -36,29 +36,38 @@ def search_image():
     file = request.files['image']
     if file.filename == '':
         return 'No selected image', 400
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not allowed_file(file.filename):
+        return 'File type not allowed', 400
+
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    try:
+        file.save(file_path)
+        embedding = generate_embedding(file_path)
+
+        if embedding is None:
+            logging.error("Failed to generate embedding")
+            return 'Error in generating embedding', 500
+
+        pinecone_index = init_pinecone()
+        if pinecone_index is None:
+            logging.error("Failed to initialize Pinecone index")
+            return 'Error initializing Pinecone index', 500
+
+        logging.info("Embedding and Pinecone index initialized, proceeding to query")
+        logging.debug(f"Embedding data: {embedding}")
+
         try:
-            file.save(file_path)
-            embedding = generate_embedding(file_path)
-
-            if embedding is None:
-                logging.error("Embedding generation failed, returned None")
-                return 'Error in generating embedding', 500
-
-            pinecone_index = init_pinecone()
-
-            if pinecone_index is None:
-                logging.error("Pinecone index initialization failed, returned None")
-                return 'Pinecone index initialization error', 500
-
-            logging.info("Embedding and Pinecone index are initialized, proceeding to query")
             query_result = pinecone_index.query(embedding, top_k=2)
-            return jsonify(query_result)
-        except Exception as e:
-            logging.error(f"Error in search operation: {e}")
-            return 'Error in search processing', 500
+        except Exception as query_error:
+            logging.error(f"Error during Pinecone query: {query_error}")
+            return 'Error during search query', 500
+
+        logging.info("Query successful")
+        return jsonify(query_result)
+    except Exception as e:
+        logging.error(f"Error in search operation: {e}")
+        return 'Error in search processing', 500
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
