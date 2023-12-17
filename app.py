@@ -3,8 +3,8 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS
 import os
 import logging
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
 from tensorflow.keras.preprocessing import image
 import pinecone
@@ -43,24 +43,22 @@ def search_image():
             file.save(file_path)
             embedding = generate_embedding(file_path)
 
-            # Check if embedding is successfully generated
             if embedding is None:
-                logging.error("Failed to generate embedding")
+                logging.error("Embedding generation failed, returned None")
                 return 'Error in generating embedding', 500
 
             pinecone_index = init_pinecone()
 
-            # Check if Pinecone index is initialized
             if pinecone_index is None:
-                logging.error("Pinecone index is not initialized")
+                logging.error("Pinecone index initialization failed, returned None")
                 return 'Pinecone index initialization error', 500
 
-            query_result = pinecone_index.query(embedding, top_k=2)  # Retrieve top 2 similar images
-            return jsonify(query_result)  # Use jsonify to return JSON response
+            logging.info("Embedding and Pinecone index are initialized, proceeding to query")
+            query_result = pinecone_index.query(embedding, top_k=2)
+            return jsonify(query_result)
         except Exception as e:
             logging.error(f"Error in search operation: {e}")
             return 'Error in search processing', 500
-
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
@@ -80,7 +78,7 @@ def upload_image():
             return 'Image successfully uploaded and indexed'
         except Exception as e:
             logging.error(f"Error uploading file: {e}")
-            return 'Error in file processing', 500  # Moved inside the except block
+            return 'Error in file processing', 500
 
 # Lazy loading of InceptionV3 model
 def get_inception_model():
@@ -98,20 +96,17 @@ def generate_embedding(image_path):
         logging.info("Processing image with Inception model")
         inception_model = get_inception_model()
 
-        # Check if the Inception model is initialized
         if inception_model is None:
             logging.error("Inception model is not initialized")
             return None
 
         embedding = inception_model.predict(img_array)
         embedding_flattened = embedding.flatten()
-        
-        # Check if the embedding is generated correctly
+
         if embedding_flattened.size == 0:
             logging.error("Failed to generate embedding")
             return None
 
-        # Assume your Pinecone index expects vectors of dimension 512
         expected_dim = 512
         if embedding_flattened.size < expected_dim:
             logging.error(f"Embedding size {embedding_flattened.size} is less than expected {expected_dim}")
@@ -119,11 +114,9 @@ def generate_embedding(image_path):
 
         embedding_list = embedding_flattened.tolist()[:expected_dim]
         return embedding_list
-
     except Exception as e:
         logging.error(f"Error in generating embedding: {e}")
         return None
-
 
 def init_pinecone():
     if 'pinecone_index' not in app.config:
