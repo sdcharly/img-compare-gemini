@@ -53,7 +53,6 @@ def search_image():
         if pinecone_index is None:
             logging.error("Failed to initialize Pinecone index")
             return 'Error initializing Pinecone index', 500
-
         try:
             query_result = pinecone_index.query(embedding, top_k=2)
             if query_result is None:
@@ -69,9 +68,15 @@ def search_image():
         try:
             # Ensure query_result is in a JSON-serializable format
             # Convert query_result to a dict or similar structure if necessary
+            if not isinstance(query_result, dict):
+                logging.error("Query result is not a dictionary")
+                return 'Query result format error', 500
 
             response = jsonify(query_result)
             return response
+        except TypeError as te:
+            logging.error(f"TypeError in jsonify operation: {te}")
+            return 'TypeError in formatting query results', 500
         except Exception as jsonify_error:
             logging.error(f"Error in jsonify operation: {jsonify_error}")
             return 'Error in formatting query results', 500
@@ -79,7 +84,6 @@ def search_image():
     except Exception as e:
         logging.error(f"Error in search operation: {e}")
         return 'Error in search processing', 500
-
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
