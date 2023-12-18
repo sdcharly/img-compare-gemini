@@ -6,3 +6,4 @@ gunicorn
 openai
 pinecone-client
 flask-cors
+huggingface_hub
