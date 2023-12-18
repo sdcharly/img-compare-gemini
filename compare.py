@@ -85,13 +85,32 @@ def upsert():
     try:
         image, image_id = request.files.get("image"), request.form.get("image_id")
         prompt_parts = generate_prompt_parts(image)
-        response = model.generate_content(prompt_parts)
-        embedding = get_embedding(response.text)
-        index = initialize_pinecone_index("imgcompare")
-        index.upsert(vectors={image_id: embedding.tolist()})
+
+        try:
+            response = model.generate_content(prompt_parts)
+        except Exception as e:
+            logging.error(f"Error generating content: {e}")
+            return jsonify({"error": "Error generating content"}), 500
+
+        try:
+            embedding = get_embedding(response.text)
+        except Exception as e:
+            logging.error(f"Error creating embedding: {e}")
+            return jsonify({"error": "Error creating embedding"}), 500
+
+        try:
+            index = initialize_pinecone_index("imgcompare")
+            index.upsert(vectors={image_id: embedding.tolist()})
+        except Exception as e:
+            logging.error(f"Error upserting image to Pinecone: {e}")
+            # Here you can add specific error handling if you know the types of errors Pinecone throws
+            return jsonify({"error": "Error upserting image"}), 500
+
         return jsonify({"message": "Image upserted successfully"})
     except Exception as e:
-        return handle_request_error(e, "upserting image")
+        logging.error(f"Unknown error during upsert: {e}")
+        return jsonify({"error": "An unknown error occurred"}), 500
+
 
 # Run the app
 if __name__ == "__main__":
