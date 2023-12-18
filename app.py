@@ -108,7 +108,7 @@ def process_image(image_path):
 
 def generate_embedding_with_description(description):
     try:
-        response = openai.Embeddings.create(query=description, model="text-similarity-babbage-002")
+        response = openai.Embedding.create(query=description, model="text-similarity-babbage-002")
 
         if "embedding" not in response:
             raise ValueError("Embedding not found in response")
