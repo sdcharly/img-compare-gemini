@@ -59,7 +59,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 logging.basicConfig(level=logging.INFO)
 
 # Initialize global variables
-global_model = None
 INDEX_NAME = 'imgcompare'
 
 
@@ -111,7 +110,7 @@ def process_image(image_path):
         question = "Describe this image:"
 
         prompt_parts = [input_prompt, image_prompt, question]
-        response = global_model.generate_content(prompt_parts)
+        response = model.generate_content(prompt_parts)
 
         description = response.text
         embedding = generate_embedding_with_description(description)
