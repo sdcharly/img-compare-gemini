@@ -4,13 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Operations</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Use url_for to generate the correct URL for the CSS file -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
     <style>
-        .container { max-width: 800px; margin-top: 30px; }
-        .results, .upload-status { margin-top: 20px; }
-        .progress { height: 25px; }
-        .progress-bar { line-height: 25px; }
-        .section { padding: 20px; margin-bottom: 30px; border: 1px solid #ddd; border-radius: 5px; }
+        .container {
+            max-width: 800px;
+            margin-top: 30px;
+        }
+        .results, .upload-status {
+            margin-top: 20px;
+        }
+        .progress {
+            height: 25px;
+        }
+        .progress-bar {
+            line-height: 25px;
+        }
+        .section {
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -41,16 +56,19 @@
         </div>
     </div>
 
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/js/bootstrap.bundle.min.js"></script>
+    <!-- Use url_for to generate the correct URL for the JavaScript file -->
+    <script src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
     <script>
         document.getElementById('searchForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            processImageRequest(this, '/search', 'searchResults', true);
+            // Use url_for to generate the correct URL for the search route
+            processImageRequest(this, '{{ url_for("search_image") }}', 'searchResults', true);
         });
 
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            processImageRequest(this, '/upload', 'uploadStatus', false);
+            // Use url_for to generate the correct URL for the upload route
+            processImageRequest(this, '{{ url_for("upload_image") }}', 'uploadStatus', false);
         });
 
         function processImageRequest(form, url, resultContainerId, isSearch) {
@@ -58,11 +76,11 @@
             var resultContainer = document.getElementById(resultContainerId);
             var progressBar = document.querySelector('.progress-bar');
             var progressDiv = document.querySelector('.progress');
-        
+
             resultContainer.innerHTML = ''; // Clear previous results or status
             progressBar.style.width = '0%';
             progressDiv.style.display = 'block';
-        
+
             fetch(url, {
                 method: 'POST',
                 body: formData
