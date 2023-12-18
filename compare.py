@@ -66,10 +66,12 @@ def handle_request_error(e, action):
     logging.error(f"Error {action}: {e}")
     return jsonify({"error": str(e)}), 500
 
-def initialize_pinecone_index(index_name, dimension=1536):
-    if index_name not in pinecone.list_indexes():
-        pinecone.create_index(index_name, dimension=dimension)
-    return pinecone.Index(index_name)
+def initialize_pinecone_index(index_name):
+    if index_name in pinecone.list_indexes():
+        return pinecone.Index(index_name)
+    else:
+        raise ValueError(f"Index '{index_name}' does not exist.")
+
 
 # Define routes
 @app.route("/")
@@ -136,14 +138,14 @@ def upsert():
         test_embedding = [0.1, 0.2, 0.3]  # Example simple embedding
         test_image_id = "test_id"  # Example simple image ID
         try:
-            index = initialize_pinecone_index("imgcompare")
+            index = initialize_pinecone_index("img-compare")
             index.upsert(vectors={test_image_id: test_embedding})
             logging.info("Test upsert successful")
         except Exception as e:
             logging.error(f"Test upsert error: {e}")
       
         try:
-            index = initialize_pinecone_index("imgcompare")
+            index = initialize_pinecone_index("img-compare")
             index.upsert(vectors={image_id: embedding})
         except Exception as e:
             return handle_request_error(e, "upsert")
