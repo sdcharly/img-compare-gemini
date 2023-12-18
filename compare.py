@@ -9,8 +9,10 @@ import google.generativeai as genai
 # Initialize Flask app
 app = Flask(__name__)
 
-# Configure API keys
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# Instantiate openai client
+client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+# Configure other API keys
 genai.configure(api_key=os.getenv('GEMINI_KEY'))
 pinecone.init(api_key=os.getenv('PINECONE_API_KEY'), environment='gcp-starter')
 
@@ -30,9 +32,11 @@ safety_settings = [
 ]
 
 # Initialize the generative model
-model = genai.GenerativeModel(model_name="gemini-pro-vision",
-                              generation_config=generation_config,
-                              safety_settings=safety_settings)
+model = genai.GenerativeModel(
+    model_name="gemini-pro-vision",
+    generation_config=generation_config,
+    safety_settings=safety_settings
+)
 
 # Define utility functions
 def input_image_setup(file):
@@ -42,7 +46,7 @@ def input_image_setup(file):
     }
 
 def get_embedding(response_text):
-    return openai.Embedding.create(engine="text-embedding-ada-002", input=response_text)
+    return client.embeddings.create(model="text-embedding-ada-002", input=response_text)
 
 def handle_request_error(e, action):
     logging.error(f"Error {action}: {e}")
@@ -65,27 +69,17 @@ def generate():
         if not image:
             return jsonify({"error": "No image provided"}), 400
 
-        # Static input prompt
         input_prompt = "You are an expert in identifying images and objects in the image and describing them."
-
-        # Static question
         question = "Describe this picture and identify it in less than 100 words:"
-
-        # Image prompt setup
         image_prompt = input_image_setup(image)
-
-        # Combining the static input prompt, image prompt, and static question
         prompt_parts = [input_prompt, image_prompt, question]
 
         response = model.generate_content(prompt_parts)
         embedding = get_embedding(response.text)
 
         return jsonify({"embedding": embedding.tolist()})
-
     except Exception as e:
-        logging.error(f"Unknown error during generation: {e}")
-        return jsonify({"error": "An unknown error occurred"}), 500
-
+        return handle_request_error(e, "generation")
 
 @app.route("/search", methods=["POST"])
 def search():
@@ -105,13 +99,12 @@ def upsert():
             return jsonify({"error": "Image and image ID are required"}), 400
 
         image_prompt = input_image_setup(image)
-        prompt_parts = [image_prompt]  # Add any additional prompt parts as needed
+        prompt_parts = [image_prompt]
 
         try:
             response = model.generate_content(prompt_parts)
         except Exception as e:
-            logging.error(f"Error in generate_content: {e}")
-            return jsonify({"error": "Error generating content. Please ensure the image format and content are correct"}), 500
+            return handle_request_error(e, "generate_content")
 
         embedding = get_embedding(response.text)
 
@@ -119,17 +112,11 @@ def upsert():
             index = initialize_pinecone_index("imgcompare")
             index.upsert(vectors={image_id: embedding.tolist()})
         except Exception as e:
-            logging.error(f"Error during upsert: {e}")
-            if "User location is not supported for the API use" in str(e):
-                return jsonify({"error": "Operation not supported in your location"}), 400
-            return jsonify({"error": "An unknown error occurred during upsert"}), 500
+            return handle_request_error(e, "upsert")
 
         return jsonify({"message": "Image upserted successfully"})
-
     except Exception as e:
-        logging.error(f"Unknown error during upsert: {e}")
-        return jsonify({"error": "An unknown error occurred"}), 500
-
+        return handle_request_error(e, "upsert")
 
 # Run the app
 if __name__ == "__main__":
