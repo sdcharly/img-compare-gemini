@@ -52,9 +52,10 @@ def input_image_setup(file):
     }
 
 def get_embedding(response_text):
-    embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=response_text)
-    embedding_data = embedding_response.embedding
-    return embedding_data
+# Access the data and embedding attributes of the response object and convert to list
+embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=response_text)
+embedding_data = embedding_response.data[0].embedding.tolist()
+return embedding_data
 
 def handle_request_error(e, action):
     logging.error(f"Error {action}: {e}")
@@ -121,7 +122,10 @@ def upsert():
             # Ensure embedding is in the correct format (list)
             if not isinstance(embedding, list):
                 embedding = [embedding]
-            index.upsert(vectors={image_id: embedding})
+            # Ensure embedding is in the correct format (list)
+            if not isinstance(embedding, list):
+                embedding = [embedding]
+                index.upsert(vectors={image_id: embedding})
         except Exception as e:
             return handle_request_error(e, "upsert")
 
