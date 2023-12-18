@@ -99,8 +99,12 @@ def process_image(image_path):
 
 def generate_embedding_with_description(description):
     try:
-        response = openai.Embedding.create(input=description, engine="text-similarity-babbage-001")
-        embedding = response['data'][0]['embedding']
+        response = openai.Embeddings.create(query=description, model="text-similarity-babbage-002")
+
+        if "embedding" not in response:
+            raise ValueError("Embedding not found in response")
+
+        embedding = response["embedding"]
 
         expected_dim = 1536
         if len(embedding) > expected_dim:
