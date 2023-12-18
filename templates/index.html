@@ -1,108 +1,52 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
-  <head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Operations</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  </head>
-  <body class="bg-gray-800 text-gray-300">
+</head>
+<body class="bg-gray-800 text-gray-300">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-2xl mt-10">
-      <!-- Image Search Section -->
-      <div class="bg-gray-700 shadow-md rounded px-8 pt-6 pb-8 mb-4">
-        <h2 class="block text-white text-xl font-bold mb-2">Image Search</h2>
-        <form id="searchForm" class="mb-4" enctype="multipart/form-data">
-          <input type="file" class="block w-full text-sm text-gray-300
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-full file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-gray-600 file:text-white
-                  hover:file:bg-gray-500
-                  mb-3" name="image" required>
-          <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Search</button>
-        </form>
-        <div id="searchResults" class="results mt-3"></div>
-      </div>
-      <!-- Image Upload Section -->
-      <div class="bg-gray-700 shadow-md rounded px-8 pt-6 pb-8 mb-4">
-        <h2 class="block text-white text-xl font-bold mb-2">Image Upload</h2>
-        <form id="uploadForm" class="mb-4" enctype="multipart/form-data">
-          <input type="file" class="block w-full text-sm text-gray-300
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-full file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-gray-600 file:text-white
-                  hover:file:bg-gray-500
-                  mb-3" name="image" required>
-          <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Upload</button>
-        </form>
-        <div class="progress mt-3" style="display: none;">
-          <div class="progress-bar bg-blue-500 progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;"></div>
+        <!-- Image Search Section -->
+        <div class="bg-gray-700 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            <h2 class="block text-white text-xl font-bold mb-2">Image Search</h2>
+            <form id="searchForm" class="mb-4" enctype="multipart/form-data">
+                <input type="file" class="block w-full text-sm text-gray-300
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-gray-600 file:text-white
+                hover:file:bg-gray-500
+                mb-3" name="image" required>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Search</button>
+            </form>
+            <div id="searchResults" class="results mt-3"></div>
         </div>
-        <div id="uploadStatus" class="upload-status mt-3"></div>
-      </div>
+        
+        <!-- Image Upload Section -->
+        <div class="bg-gray-700 shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            <h2 class="block text-white text-xl font-bold mb-2">Image Upload</h2>
+            <form id="uploadForm" class="mb-4" enctype="multipart/form-data">
+                <input type="file" class="block w-full text-sm text-gray-300
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-gray-600 file:text-white
+                hover:file:bg-gray-500
+                mb-3" name="image" required>
+                <input type="text" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" name="image_id" placeholder="Enter a unique ID for the image" required>
+                <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Upload</button>
+            </form>
+            <div class="progress mt-3" style="display: none;">
+                <div class="progress-bar bg-blue-500 progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;"></div>
+            </div>
+            <div id="uploadStatus" class="upload-status mt-3"></div>
+        </div>
     </div>
 
-	  <!-- Use url_for to generate the correct URL for the JavaScript file -->
+    <!-- JavaScript files -->
     <script src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
-    <script>
-      document.getElementById('searchForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        // Use url_for to generate the correct URL for the search route
-        processImageRequest(this, '{{ url_for("search_image") }}', 'searchResults', true);
-      });
-      document.getElementById('uploadForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        // Use url_for to generate the correct URL for the upload route
-        processImageRequest(this, '{{ url_for("upload_image") }}', 'uploadStatus', false);
-      });
-
-      function processImageRequest(form, url, resultContainerId, isSearch) {
-        var formData = new FormData(form);
-        var resultContainer = document.getElementById(resultContainerId);
-        var progressBar = document.querySelector('.progress-bar');
-        var progressDiv = document.querySelector('.progress');
-        resultContainer.innerHTML = ''; // Clear previous results or status
-        progressBar.style.width = '0%';
-        progressDiv.style.display = 'block';
-        fetch(url, {
-          method: 'POST',
-          body: formData
-        }).then(response => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return isSearch ? response.json() : response.text();
-        }).then(data => {
-          progressBar.style.width = '100%';
-          if (isSearch) {
-            displaySearchResults(data, resultContainer);
-          } else {
-            resultContainer.innerHTML = data;
-          }
-        }).catch(error => {
-          console.error('Fetch error:', error);
-          resultContainer.innerText = 'Operation failed. Please try again.';
-        }).finally(() => {
-          setTimeout(() => progressDiv.style.display = 'none', 2000); // Hide progress bar after delay
-        });
-      }
-
-      function displaySearchResults(data, container) {
-        if (data.matches && data.matches.length > 0) {
-          var resultsHtml = data.matches.map(match => {
-            return `
-		<div>
-			<strong>ID:</strong> ${match.id}, 
-			<strong>Score:</strong> ${match.score}
-		</div>`;
-          }).join('');
-          container.innerHTML = `
-		<h4>Results:</h4>${resultsHtml}`;
-        } else {
-          container.innerHTML = 'No matches found';
-        }
-      }
-    </script>
-  </body>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
 </html>
