@@ -1,119 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Operations</title>
     <!-- Use url_for to generate the correct URL for the CSS file -->
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
     <style>
-        .container {
-            max-width: 800px;
-            margin-top: 30px;
-        }
-        .results, .upload-status {
-            margin-top: 20px;
-        }
-        .progress {
-            height: 25px;
-        }
-        .progress-bar {
-            line-height: 25px;
-        }
-        .section {
-            padding: 20px;
-            margin-bottom: 30px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
+      .container {
+        max-width: 800px;
+        margin-top: 30px;
+      }
+
+      .results,
+      .upload-status {
+        margin-top: 20px;
+      }
+
+      .progress {
+        height: 25px;
+      }
+
+      .progress-bar {
+        line-height: 25px;
+      }
+
+      .section {
+        padding: 20px;
+        margin-bottom: 30px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <!-- Image Search Section -->
-        <div class="section">
-            <h2>Image Search</h2>
-            <form id="searchForm" enctype="multipart/form-data">
-                <input type="file" class="form-control" name="image" required>
-                <button type="submit" class="btn btn-primary mt-3">Search</button>
-            </form>
-            <div id="searchResults" class="results mt-3"></div>
+      <!-- Image Search Section -->
+      <div class="section">
+        <h2>Image Search</h2>
+        <form id="searchForm" enctype="multipart/form-data">
+          <input type="file" class="form-control" name="image" required>
+          <button type="submit" class="btn btn-primary mt-3">Search</button>
+        </form>
+        <div id="searchResults" class="results mt-3"></div>
+      </div>
+      <!-- Image Upload Section -->
+      <div class="section">
+        <h2>Image Upload</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+          <input type="file" class="form-control" name="image" required>
+          <button type="submit" class="btn btn-success mt-3">Upload</button>
+        </form>
+        <div class="progress mt-3" style="display: none;">
+          <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;"></div>
         </div>
-
-        <!-- Image Upload Section -->
-        <div class="section">
-            <h2>Image Upload</h2>
-            <form id="uploadForm" enctype="multipart/form-data">
-                <input type="file" class="form-control" name="image" required>
-                <button type="submit" class="btn btn-success mt-3">Upload</button>
-            </form>
-            <div class="progress mt-3" style="display: none;">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                     role="progressbar" style="width: 0%;">
-                </div>
-            </div>
-            <div id="uploadStatus" class="upload-status mt-3"></div>
-        </div>
+        <div id="uploadStatus" class="upload-status mt-3"></div>
+      </div>
     </div>
-
     <!-- Use url_for to generate the correct URL for the JavaScript file -->
     <script src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
     <script>
-        document.getElementById('searchForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            // Use url_for to generate the correct URL for the search route
-            processImageRequest(this, '{{ url_for("search_image") }}', 'searchResults', true);
+      document.getElementById('searchForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        // Use url_for to generate the correct URL for the search route
+        processImageRequest(this, '{{ url_for("search_image") }}', 'searchResults', true);
+      });
+      document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        // Use url_for to generate the correct URL for the upload route
+        processImageRequest(this, '{{ url_for("upload_image") }}', 'uploadStatus', false);
+      });
+
+      function processImageRequest(form, url, resultContainerId, isSearch) {
+        var formData = new FormData(form);
+        var resultContainer = document.getElementById(resultContainerId);
+        var progressBar = document.querySelector('.progress-bar');
+        var progressDiv = document.querySelector('.progress');
+        resultContainer.innerHTML = ''; // Clear previous results or status
+        progressBar.style.width = '0%';
+        progressDiv.style.display = 'block';
+        fetch(url, {
+          method: 'POST',
+          body: formData
+        }).then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return isSearch ? response.json() : response.text();
+        }).then(data => {
+          progressBar.style.width = '100%';
+          if (isSearch) {
+            displaySearchResults(data, resultContainer);
+          } else {
+            resultContainer.innerHTML = data;
+          }
+        }).catch(error => {
+          console.error('Fetch error:', error);
+          resultContainer.innerText = 'Operation failed. Please try again.';
+        }).finally(() => {
+          setTimeout(() => progressDiv.style.display = 'none', 2000); // Hide progress bar after delay
         });
+      }
 
-        document.getElementById('uploadForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            // Use url_for to generate the correct URL for the upload route
-            processImageRequest(this, '{{ url_for("upload_image") }}', 'uploadStatus', false);
-        });
-
-        function processImageRequest(form, url, resultContainerId, isSearch) {
-            var formData = new FormData(form);
-            var resultContainer = document.getElementById(resultContainerId);
-            var progressBar = document.querySelector('.progress-bar');
-            var progressDiv = document.querySelector('.progress');
-
-            resultContainer.innerHTML = ''; // Clear previous results or status
-            progressBar.style.width = '0%';
-            progressDiv.style.display = 'block';
-
-            fetch(url, {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return isSearch ? response.json() : response.text();
-            }).then(data => {
-                progressBar.style.width = '100%';
-                if (isSearch) {
-                    displaySearchResults(data, resultContainer);
-                } else {
-                    resultContainer.innerHTML = data;
-                }
-            }).catch(error => {
-                console.error('Fetch error:', error);
-                resultContainer.innerText = 'Operation failed. Please try again.';
-            }).finally(() => {
-                setTimeout(() => progressDiv.style.display = 'none', 2000); // Hide progress bar after delay
-            });
+      function displaySearchResults(data, container) {
+        if (data.matches && data.matches.length > 0) {
+          var resultsHtml = data.matches.map(match => {
+            return `
+								<div>
+									<strong>ID:</strong> ${match.id}, 
+									<strong>Score:</strong> ${match.score}
+								</div>`;
+          }).join('');
+          container.innerHTML = `
+								<h4>Results:</h4>${resultsHtml}`;
+        } else {
+          container.innerHTML = 'No matches found';
         }
-
-        function displaySearchResults(data, container) {
-            if (data.matches && data.matches.length > 0) {
-                var resultsHtml = data.matches.map(match => {
-                    return `<div><strong>ID:</strong> ${match.id}, <strong>Score:</strong> ${match.score}</div>`;
-                }).join('');
-                container.innerHTML = `<h4>Results:</h4>${resultsHtml}`;
-            } else {
-                container.innerHTML = 'No matches found';
-            }
-        }
+      }
     </script>
-</body>
+  </body>
 </html>
