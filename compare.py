@@ -97,17 +97,29 @@ def upsert():
         image_prompt = input_image_setup(image)
         prompt_parts = [image_prompt]  # Add any additional prompt parts as needed
 
-        response = model.generate_content(prompt_parts)
+        try:
+            response = model.generate_content(prompt_parts)
+        except Exception as e:
+            logging.error(f"Error in generate_content: {e}")
+            return jsonify({"error": "Error generating content. Please ensure the image format and content are correct"}), 500
+
         embedding = get_embedding(response.text)
 
-        index = initialize_pinecone_index("imgcompare")
-        index.upsert(vectors={image_id: embedding.tolist()})
+        try:
+            index = initialize_pinecone_index("imgcompare")
+            index.upsert(vectors={image_id: embedding.tolist()})
+        except Exception as e:
+            logging.error(f"Error during upsert: {e}")
+            if "User location is not supported for the API use" in str(e):
+                return jsonify({"error": "Operation not supported in your location"}), 400
+            return jsonify({"error": "An unknown error occurred during upsert"}), 500
 
         return jsonify({"message": "Image upserted successfully"})
 
     except Exception as e:
         logging.error(f"Unknown error during upsert: {e}")
         return jsonify({"error": "An unknown error occurred"}), 500
+
 
 # Run the app
 if __name__ == "__main__":
