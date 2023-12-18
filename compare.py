@@ -121,16 +121,14 @@ def upsert():
             # Ensure embedding is in the correct format (list)
             if not isinstance(embedding, list):
                 embedding = [embedding]
-            # Ensure embedding is in the correct format (list)
-            if not isinstance(embedding, list):
-                embedding = [embedding]
-                index.upsert(vectors={image_id: embedding})
+            index.upsert(vectors={image_id: embedding})
         except Exception as e:
             return handle_request_error(e, "upsert")
 
         return jsonify({"message": "Image upserted successfully"})
     except Exception as e:
         return handle_request_error(e, "upsert")
+
 
 # Run the app
 if __name__ == "__main__":
