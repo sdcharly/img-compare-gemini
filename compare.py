@@ -66,18 +66,18 @@ def home():
 def generate():
     try:
         image = request.files.get("image")
-        if not image:
-            return jsonify({"error": "No image provided"}), 400
+    if not image:
+        return jsonify({"error": "No image provided"}), 400
 
-        input_prompt = "You are an expert in identifying images and objects in the image and describing them."
-        question = "Describe this picture and identify it in less than 100 words:"
-        image_prompt = input_image_setup(image)
-        prompt_parts = [input_prompt, image_prompt, question]
+    input_prompt = "You are an expert in identifying images and objects in the image and describing them."
+    question = "Describe this picture and identify it in less than 100 words:"
+    image_prompt = input_image_setup(image)
+    prompt_parts = [input_prompt, image_prompt, question]
 
-        response = model.generate_content(prompt_parts)
-        embedding = get_embedding(response.text)
+    response = model.generate_content(prompt_parts)
+    embedding = get_embedding(response.text).data.tolist()
 
-        return jsonify({"embedding": embedding.tolist()})
+        return jsonify({"embedding": embedding}) # Remove the .tolist() here
     except Exception as e:
         return handle_request_error(e, "generation")
 
