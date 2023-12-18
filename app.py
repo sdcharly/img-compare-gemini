@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
+from openai.embeddings_utils import get_embedding
 import os
 import logging
 import pinecone
@@ -108,12 +109,7 @@ def process_image(image_path):
 
 def generate_embedding_with_description(description):
     try:
-        response = openai.Embedding.create(query=description, model="text-similarity-babbage-002")
-
-        if "embedding" not in response:
-            raise ValueError("Embedding not found in response")
-
-        embedding = response["embedding"]
+        embedding = get_embedding(input=description, model="text-embedding-ada-002")
 
         expected_dim = 1536
         if len(embedding) > expected_dim:
