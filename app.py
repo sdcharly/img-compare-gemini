@@ -109,7 +109,7 @@ def process_image(image_path):
 def generate_embedding_with_description(description):
     try:
         # Use the TextEmbedding class instead of the get_embedding function
-        text_embedding = openai.TextEmbedding(model="text-embedding-ada-002")
+        text_embedding = openai.TextEmbedding(model="text-embedding-ada-001")
         embedding = text_embedding.create(input=description)
 
         expected_dim = 1536
