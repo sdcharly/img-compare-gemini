@@ -54,10 +54,12 @@ def input_image_setup(file):
 def get_embedding(response_text):
     embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=response_text)
     embedding_data = embedding_response.data[0].embedding
-    # Ensure embedding_data is a list of floats
-    if not isinstance(embedding_data, list):
-        embedding_data = list(embedding_data)
-    return embedding_data
+    # Convert to list of floats
+    if isinstance(embedding_data, list):
+        return [float(value) for value in embedding_data]
+    else:
+        return list(map(float, embedding_data))
+
 
 
 def handle_request_error(e, action):
@@ -119,6 +121,8 @@ def upsert():
             return handle_request_error(e, "generate_content")
 
         embedding = get_embedding(response.text)
+        
+        logging.info(f"Embedding type: {type(embedding)}, Embedding data: {embedding}")
 
         try:
             index = initialize_pinecone_index("imgcompare")
