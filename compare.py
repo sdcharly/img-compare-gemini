@@ -83,7 +83,7 @@ def generate():
         prompt_parts = [input_prompt, image_prompt, question]
 
         response = model.generate_content(prompt_parts)
-        embedding = get_embedding(response.text).data.tolist()
+        embedding = get_embedding(response.text)
 
         return jsonify({"embedding": embedding})
     except Exception as e:
