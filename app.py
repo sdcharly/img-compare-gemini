@@ -83,7 +83,7 @@ def process_image(image_path):
 
         image_prompt = {"mime_type": "image/jpeg", "data": image_data}
         input_prompt = "You are an expert in identifying images and objects in the image and describing them."
-        question = "Describe this image:"
+        question = "Describe this image in less thatn 100 words:"
 
         prompt_parts = [input_prompt, image_prompt, question]
         response = model.generate_content(prompt_parts)
