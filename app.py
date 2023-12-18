@@ -1,37 +1,25 @@
+# Import necessary libraries
 from flask import Flask, request, jsonify, render_template
-from werkzeug.utils import secure_filename
 import os
 import logging
 import pinecone
 import openai
 import google.generativeai as genai
 
+# Initialize Flask app
 app = Flask(__name__)
 
 # Configure API keys
 openai.api_key = os.getenv('OPENAI_API_KEY')
 genai.configure(api_key=os.getenv('GEMINI_KEY'))
+pinecone.init(api_key=os.getenv('PINECONE_API_KEY'), environment='gcp-starter')
 
-UPLOAD_FOLDER = './uploads/'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
-
-# Ensure the upload folder exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Basic logging setup
-logging.basicConfig(level=logging.INFO)
-
-# Global variable for Pinecone index name
-INDEX_NAME = 'imgcompare'
-
-# Set up the generative model configuration
+# Generative model configuration
 generation_config = {
-    "temperature": 0.1,
+    "temperature": 0.6,
     "top_p": 1,
     "top_k": 32,
-    "max_output_tokens": 4096,
+    "max_output_tokens": 4096
 }
 
 safety_settings = [
@@ -46,104 +34,65 @@ model = genai.GenerativeModel(model_name="gemini-pro-vision",
                               generation_config=generation_config,
                               safety_settings=safety_settings)
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+# Define utility functions
+def generate_prompt_parts(image):
+    return [
+        "You are an expert in identifying images and objects in the image and describing them.",
+        {"mime_type": "image/jpeg", "data": image.read()},
+        "Describe this image in less than 100 words:"
+    ]
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+def get_embedding(response_text):
+    return openai.Embedding.create(engine="text-embedding-ada-002", input=response_text)
 
+def handle_request_error(e, action):
+    logging.error(f"Error {action}: {e}")
+    return jsonify({"error": str(e)}), 500
 
-@app.route('/upload', methods=['POST'])
-def upload_image():
+def initialize_pinecone_index(index_name, dimension=1536):
+    if index_name not in pinecone.list_indexes():
+        pinecone.create_index(index_name, dimension=dimension)
+    return pinecone.Index(index_name)
+
+# Define routes
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/generate", methods=["POST"])
+def generate():
     try:
-        if 'image' not in request.files:
-            raise ValueError("No image part")
-        file = request.files['image']
-        if file.filename == '' or not allowed_file(file.filename):
-            raise ValueError("No selected image or file type not allowed")
-
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-
-        embedding = process_image(file_path)
-        if embedding is None:
-            raise ValueError("Failed to process image or generate embedding")
-
-        upsert_to_pinecone(filename, embedding)
-        return jsonify({"message": "Image uploaded successfully"})
-    except Exception as e:
-        logging.error(f"Upload Image Error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/search', methods=['POST'])
-def search_image():
-    try:
-        # Search image handling code
-        return jsonify({"message": "Search completed", "results": search_results})
-    except Exception as e:
-        logging.error(f"Search Image Error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-def process_image(image_path):
-    try:
-        with open(image_path, 'rb') as image_file:
-            image_data = image_file.read()
-
-        image_prompt = {"mime_type": "image/jpeg", "data": image_data}
-        input_prompt = "You are an expert in identifying images and objects in the image. You have a high skill in matching images."
-        question = "Mention the unique chacaters in less than 100 words:"
-
-        prompt_parts = [input_prompt, image_prompt, question]
+        image = request.files.get("image")
+        prompt_parts = generate_prompt_parts(image)
         response = model.generate_content(prompt_parts)
-
-        description = response.text
-        embedding = generate_embedding_with_description(description)
-        if embedding is None:
-            raise ValueError("Failed to generate embedding")
-        return embedding
+        embedding = get_embedding(response.text)
+        return jsonify({"embedding": embedding.tolist()})
     except Exception as e:
-        logging.error(f"Process Image Error: {e}")
-        return None
+        return handle_request_error(e, "generating embedding")
 
-def generate_embedding_with_description(description):
+@app.route("/search", methods=["POST"])
+def search():
     try:
-        # Use the TextEmbedding class instead of the get_embedding function
-        text_embedding = openai.TextEmbedding(model="text-embedding-ada-001")
-        embedding = text_embedding.create(input=description)
-
-        expected_dim = 1536
-        if len(embedding) > expected_dim:
-            embedding = embedding[:expected_dim]
-        elif len(embedding) < expected_dim:
-            embedding.extend([0.0] * (expected_dim - len(embedding)))
-
-        return embedding
+        query = request.json.get("query")
+        index = initialize_pinecone_index("imgcompare")
+        query_results = index.query(vectors=[query], top_k=10)
+        return jsonify({"results": query_results})
     except Exception as e:
-        logging.error(f"Error generating embedding with OpenAI: {e}")
-        return None
+        return handle_request_error(e, "searching embeddings")
 
-def init_pinecone():
+@app.route("/upsert", methods=["POST"])
+def upsert():
     try:
-        pinecone.init(api_key=os.getenv('PINECONE_API_KEY'), environment='gcp-starter')
-        if INDEX_NAME not in pinecone.list_indexes():
-            pinecone.create_index(INDEX_NAME, dimension=1536)
+        image, image_id = request.files.get("image"), request.form.get("image_id")
+        prompt_parts = generate_prompt_parts(image)
+        response = model.generate_content(prompt_parts)
+        embedding = get_embedding(response.text)
+        index = initialize_pinecone_index("imgcompare")
+        index.upsert(vectors={image_id: embedding.tolist()})
+        return jsonify({"message": "Image upserted successfully"})
     except Exception as e:
-        logging.error(f"Pinecone Initialization Error: {e}")
-        raise
+        return handle_request_error(e, "upserting image")
 
-init_pinecone()
-
-def upsert_to_pinecone(image_name, embedding):
-    try:
-        index = pinecone.Index(INDEX_NAME)
-        data = {image_name: embedding.tolist()}
-        index.upsert(vectors=data)
-        logging.info(f"Upserted {image_name} to Pinecone successfully.")
-    except Exception as e:
-        logging.error(f"Error upserting to Pinecone: {e}")
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# Run the app
+if __name__ == "__main__":
+    app.run(debug=False)  # Set debug to False for production
