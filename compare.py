@@ -128,7 +128,20 @@ def upsert():
         else:
             non_floats = [type(item) for item in embedding if not isinstance(item, float)]
             logging.error(f"Non-float types in embedding: {set(non_floats)}")
-
+            
+        # Add logging for image_id
+        logging.info(f"Image ID type: {type(image_id)}, Image ID: {image_id}")
+        
+        # Test upsert with hardcoded values
+        test_embedding = [0.1, 0.2, 0.3]  # Example simple embedding
+        test_image_id = "test_id"  # Example simple image ID
+        try:
+            index = initialize_pinecone_index("imgcompare")
+            index.upsert(vectors={test_image_id: test_embedding})
+            logging.info("Test upsert successful")
+        except Exception as e:
+            logging.error(f"Test upsert error: {e}")
+      
         try:
             index = initialize_pinecone_index("imgcompare")
             index.upsert(vectors={image_id: embedding})
