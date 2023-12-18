@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify, render_template
 import os
 import logging
 import pinecone
+import base64
 import openai
 import google.generativeai as genai
 
@@ -46,19 +47,57 @@ model = genai.GenerativeModel(
 
 # Define utility functions
 def input_image_setup(file):
-    return {
-        "mime_type": "image/jpeg",
-        "data": file.read()
-    }
+    try:
+        # Ensure the file is not empty
+        if file is None or file.tell() == 0:
+            logging.error("No file provided or file is empty.")
+            return None
+
+        # Reset file pointer to the start
+        file.seek(0)
+
+        # Encode the file data as base64
+        encoded_data = base64.b64encode(file.read()).decode('utf-8')
+
+        return {
+            "mime_type": "image/jpeg",  # Consider dynamic MIME type detection for different image formats
+            "data": encoded_data
+        }
+
+    except Exception as e:
+        logging.error(f"Error encoding image: {e}")
+        return None
 
 def get_embedding(response_text):
-    embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=response_text)
-    embedding_data = embedding_response.data[0].embedding
-    # Convert to list of floats
-    if isinstance(embedding_data, list):
-        return [float(value) for value in embedding_data]
-    else:
-        return list(map(float, embedding_data))
+    """
+    Retrieves the embedding for a given text using OpenAI's embedding model.
+
+    Args:
+        response_text (str): The text for which the embedding is to be generated.
+
+    Returns:
+        list: A list of floats representing the embedding of the text.
+        Returns None if an error occurs during the embedding process.
+
+    """
+    if not response_text:
+        logging.error("No response text provided for embedding.")
+        return None
+
+    try:
+        embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=response_text)
+
+        # Check if the response contains the expected data
+        if 'data' in embedding_response and len(embedding_response['data']) > 0:
+            embedding_data = embedding_response['data'][0]['embedding']
+            return embedding_data
+        else:
+            logging.error("Invalid response structure from embedding API.")
+            return None
+
+    except Exception as e:
+        logging.error(f"Error in generating embedding: {e}")
+        return None
 
 
 
