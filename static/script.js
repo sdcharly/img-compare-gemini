@@ -26,7 +26,7 @@ function processImageRequest(form, url, resultContainerId, isSearch) {
         body: formData
     }).then(response => {
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            return response.json().then(err => { throw new Error(err.error || 'Network response was not ok') });
         }
         return isSearch ? response.json() : response.text();
     }).then(data => {
@@ -38,7 +38,7 @@ function processImageRequest(form, url, resultContainerId, isSearch) {
         }
     }).catch(error => {
         console.error('Fetch error:', error);
-        resultContainer.innerText = 'Operation failed. Please try again.';
+        resultContainer.innerText = error.message || 'Operation failed. Please try again.';
     }).finally(() => {
         setTimeout(() => progressDiv.style.display = 'none', 2000); // Hide progress bar after delay
     });
