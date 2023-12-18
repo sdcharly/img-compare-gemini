@@ -52,10 +52,9 @@ def input_image_setup(file):
     }
 
 def get_embedding(response_text):
-# Access the data and embedding attributes of the response object and convert to list
-embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=response_text)
-embedding_data = embedding_response.data[0].embedding.tolist()
-return embedding_data
+    embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=response_text)
+    embedding_data = embedding_response.data[0].embedding.tolist()
+    return embedding_data
 
 def handle_request_error(e, action):
     logging.error(f"Error {action}: {e}")
