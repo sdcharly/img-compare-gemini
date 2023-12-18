@@ -35,12 +35,11 @@ model = genai.GenerativeModel(model_name="gemini-pro-vision",
                               safety_settings=safety_settings)
 
 # Define utility functions
-def generate_prompt_parts(image):
-    return [
-        "You are an expert in identifying images and objects in the image and describing them.",
-        {"mime_type": "image/jpeg", "data": image.read()},
-        "Describe this image in less than 100 words:"
-    ]
+def input_image_setup(file):
+    return {
+        "mime_type": "image/jpeg",
+        "data": file.read()
+    }
 
 def get_embedding(response_text):
     return openai.Embedding.create(engine="text-embedding-ada-002", input=response_text)
@@ -63,15 +62,15 @@ def home():
 def generate():
     try:
         image = request.files.get("image")
-        prompt_parts = generate_prompt_parts(image)
+        if not image:
+            return jsonify({"error": "No image provided"}), 400
 
-        try:
-            response = model.generate_content(prompt_parts)
-        except Exception as e:
-            logging.error(f"Error in generate_content: {e}")
-            return jsonify({"error": "Error generating content. Please ensure the image format and content are correct"}), 500
+        image_prompt = input_image_setup(image)
+        prompt_parts = [image_prompt]  # Add any additional prompt parts as needed
 
+        response = model.generate_content(prompt_parts)
         embedding = get_embedding(response.text)
+
         return jsonify({"embedding": embedding.tolist()})
 
     except Exception as e:
@@ -92,24 +91,23 @@ def search():
 def upsert():
     try:
         image, image_id = request.files.get("image"), request.form.get("image_id")
-        prompt_parts = generate_prompt_parts(image)
+        if not image or not image_id:
+            return jsonify({"error": "Image and image ID are required"}), 400
 
-        try:
-            response = model.generate_content(prompt_parts)
-        except Exception as e:
-            logging.error(f"Error in generate_content: {e}")
-            return jsonify({"error": "Error generating content. Please ensure the image format and content are correct"}), 500
+        image_prompt = input_image_setup(image)
+        prompt_parts = [image_prompt]  # Add any additional prompt parts as needed
 
+        response = model.generate_content(prompt_parts)
         embedding = get_embedding(response.text)
+
         index = initialize_pinecone_index("imgcompare")
         index.upsert(vectors={image_id: embedding.tolist()})
+
         return jsonify({"message": "Image upserted successfully"})
 
     except Exception as e:
         logging.error(f"Unknown error during upsert: {e}")
         return jsonify({"error": "An unknown error occurred"}), 500
-
-
 
 # Run the app
 if __name__ == "__main__":
