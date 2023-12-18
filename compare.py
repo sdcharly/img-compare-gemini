@@ -65,8 +65,17 @@ def generate():
         if not image:
             return jsonify({"error": "No image provided"}), 400
 
+        # Static input prompt
+        input_prompt = "You are an expert in identifying images and objects in the image and describing them."
+
+        # Static question
+        question = "Describe this picture and identify it in less than 100 words:"
+
+        # Image prompt setup
         image_prompt = input_image_setup(image)
-        prompt_parts = [image_prompt]  # Add any additional prompt parts as needed
+
+        # Combining the static input prompt, image prompt, and static question
+        prompt_parts = [input_prompt, image_prompt, question]
 
         response = model.generate_content(prompt_parts)
         embedding = get_embedding(response.text)
@@ -76,6 +85,7 @@ def generate():
     except Exception as e:
         logging.error(f"Unknown error during generation: {e}")
         return jsonify({"error": "An unknown error occurred"}), 500
+
 
 @app.route("/search", methods=["POST"])
 def search():
