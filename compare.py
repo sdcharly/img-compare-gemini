@@ -121,8 +121,13 @@ def upsert():
             return handle_request_error(e, "generate_content")
 
         embedding = get_embedding(response.text)
-        
-        logging.info(f"Embedding type: {type(embedding)}, Embedding data: {embedding}")
+
+        # New code: Check each element in embedding to confirm it's a float
+        if all(isinstance(item, float) for item in embedding):
+            logging.info("All elements in embedding are floats.")
+        else:
+            non_floats = [type(item) for item in embedding if not isinstance(item, float)]
+            logging.error(f"Non-float types in embedding: {set(non_floats)}")
 
         try:
             index = initialize_pinecone_index("imgcompare")
@@ -130,10 +135,10 @@ def upsert():
         except Exception as e:
             return handle_request_error(e, "upsert")
 
-
         return jsonify({"message": "Image upserted successfully"})
     except Exception as e:
         return handle_request_error(e, "upsert")
+
 
 
 # Run the app
