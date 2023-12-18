@@ -92,13 +92,13 @@
         if (data.matches && data.matches.length > 0) {
           var resultsHtml = data.matches.map(match => {
             return `
-								<div>
-									<strong>ID:</strong> ${match.id}, 
-									<strong>Score:</strong> ${match.score}
-								</div>`;
+		<div>
+			<strong>ID:</strong> ${match.id}, 
+			<strong>Score:</strong> ${match.score}
+		</div>`;
           }).join('');
           container.innerHTML = `
-								<h4>Results:</h4>${resultsHtml}`;
+		<h4>Results:</h4>${resultsHtml}`;
         } else {
           container.innerHTML = 'No matches found';
         }
