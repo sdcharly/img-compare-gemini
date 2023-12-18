@@ -76,6 +76,15 @@ def upload_image():
         logging.error(f"Upload Image Error: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/search', methods=['POST'])
+def search_image():
+    try:
+        # Search image handling code
+         return jsonify({"message": "Search completed", "results": search_results})
+    except Exception as e:
+        logging.error(f"Search Image Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 def process_image(image_path):
     try:
         with open(image_path, 'rb') as image_file:
