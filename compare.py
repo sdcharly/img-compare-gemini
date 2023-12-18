@@ -52,7 +52,9 @@ def input_image_setup(file):
     }
 
 def get_embedding(response_text):
-    return client.embeddings.create(model="text-embedding-ada-002", input=response_text)
+    embedding_response = client.embeddings.create(model="text-embedding-ada-002", input=response_text)
+    # Assuming the embedding is in the 'data' attribute and is already a list
+    return embedding_response['data']
 
 def handle_request_error(e, action):
     logging.error(f"Error {action}: {e}")
@@ -116,13 +118,17 @@ def upsert():
 
         try:
             index = initialize_pinecone_index("imgcompare")
-            index.upsert(vectors={image_id: embedding.tolist()})
+            # Ensure the embedding is a list before upserting
+            if not isinstance(embedding, list):
+                embedding = list(embedding)
+            index.upsert(vectors={image_id: embedding})
         except Exception as e:
             return handle_request_error(e, "upsert")
 
         return jsonify({"message": "Image upserted successfully"})
     except Exception as e:
         return handle_request_error(e, "upsert")
+
 
 # Run the app
 if __name__ == "__main__":
