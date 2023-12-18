@@ -53,6 +53,7 @@ def allowed_file(filename):
 def index():
     return render_template('index.html')
 
+
 @app.route('/upload', methods=['POST'])
 def upload_image():
     try:
@@ -76,6 +77,7 @@ def upload_image():
         logging.error(f"Upload Image Error: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/search', methods=['POST'])
 def search_image():
     try:
@@ -91,8 +93,8 @@ def process_image(image_path):
             image_data = image_file.read()
 
         image_prompt = {"mime_type": "image/jpeg", "data": image_data}
-        input_prompt = "You are an expert in identifying images and objects in the image and describing them."
-        question = "Describe this image in less than 100 words:"
+        input_prompt = "You are an expert in identifying images and objects in the image. You have a high skill in matching images."
+        question = "Mention the unique chacaters in less than 100 words:"
 
         prompt_parts = [input_prompt, image_prompt, question]
         response = model.generate_content(prompt_parts)
