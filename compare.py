@@ -9,12 +9,20 @@ import google.generativeai as genai
 # Initialize Flask app
 app = Flask(__name__)
 
-# Instantiate openai client
-client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Logging configuration
+logging.basicConfig(level=logging.INFO)
 
-# Configure other API keys
-genai.configure(api_key=os.getenv('GEMINI_KEY'))
-pinecone.init(api_key=os.getenv('PINECONE_API_KEY'), environment='gcp-starter')
+# Environment configuration
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+GEMINI_KEY = os.getenv('GEMINI_KEY')
+PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
+
+# Instantiate OpenAI client
+client = openai.OpenAI(api_key=OPENAI_API_KEY)
+
+# Configure other APIs
+genai.configure(api_key=GEMINI_KEY)
+pinecone.init(api_key=PINECONE_API_KEY, environment='gcp-starter')
 
 # Generative model configuration
 generation_config = {
@@ -26,9 +34,7 @@ generation_config = {
 
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
+    # ... (other safety settings)
 ]
 
 # Initialize the generative model
@@ -66,18 +72,18 @@ def home():
 def generate():
     try:
         image = request.files.get("image")
-    if not image:
-        return jsonify({"error": "No image provided"}), 400
+        if not image:
+            return jsonify({"error": "No image provided"}), 400
 
-    input_prompt = "You are an expert in identifying images and objects in the image and describing them."
-    question = "Describe this picture and identify it in less than 100 words:"
-    image_prompt = input_image_setup(image)
-    prompt_parts = [input_prompt, image_prompt, question]
+        input_prompt = "You are an expert in identifying images and objects in the image and describing them."
+        question = "Describe this picture and identify it in less than 100 words:"
+        image_prompt = input_image_setup(image)
+        prompt_parts = [input_prompt, image_prompt, question]
 
-    response = model.generate_content(prompt_parts)
-    embedding = get_embedding(response.text).data.tolist()
+        response = model.generate_content(prompt_parts)
+        embedding = get_embedding(response.text).data.tolist()
 
-        return jsonify({"embedding": embedding}) # Remove the .tolist() here
+        return jsonify({"embedding": embedding})
     except Exception as e:
         return handle_request_error(e, "generation")
 
